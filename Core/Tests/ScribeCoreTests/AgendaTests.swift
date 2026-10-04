@@ -103,3 +103,14 @@ struct AgendaTests {
         #expect(build(items, at: moment, calendar: bangkok).overdue.map(\.title) == ["Monday task"])
     }
 }
+
+@MainActor
+struct StoreAgendaTests {
+    @Test func storeAgendaUsesStoredItems() throws {
+        let store = try makeStore()
+        let id = try store.addItem(ItemDraft(title: "Flights", due: DueDate(day: LocalDay(2026, 10, 9))))
+        try store.addItem(ItemDraft(title: "Undated"))
+        let agenda = store.agenda(.all, now: TestCalendar.monday)
+        #expect(agenda.days.flatMap(\.items).map(\.id) == [id])
+    }
+}
