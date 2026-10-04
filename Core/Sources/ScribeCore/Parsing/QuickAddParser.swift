@@ -96,6 +96,7 @@ public struct QuickAddParser: Sendable {
         if let match = Self.categoryTag(phrase, categories: categories) { return .category(match) }
         if Self.memoMarkers.contains(lower) { return .kind(.memo) }
         if let day = DatePhrases.parse(lower, today: today, calendar: calendar) { return .date(day) }
+        if let value = TimePhrases.parse(lower) { return .time(value) }
         return nil
     }
 
