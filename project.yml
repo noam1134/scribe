@@ -1,0 +1,59 @@
+name: Scribe
+options:
+  bundleIdPrefix: com.noamchuri
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: X74V85W2JX
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  ScribeCore:
+    path: Core
+targets:
+  Scribe:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - App
+    dependencies:
+      - package: ScribeCore
+      - target: ScribeWidgets
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Scribe
+        UILaunchScreen: {}
+        UIBackgroundModes: [remote-notification]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.noamchuri.scribe
+        CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]: App/Scribe-iOS.entitlements
+        CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]: App/Scribe-iOS.entitlements
+        CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/Scribe-macOS.entitlements
+        ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
+  ScribeWidgets:
+    type: app-extension
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - Widgets
+    dependencies:
+      - package: ScribeCore
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Scribe Widgets
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.noamchuri.scribe.widgets
+        CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]: Widgets/ScribeWidgets-iOS.entitlements
+        CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]: Widgets/ScribeWidgets-iOS.entitlements
+        CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Widgets/ScribeWidgets-macOS.entitlements
+        ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
