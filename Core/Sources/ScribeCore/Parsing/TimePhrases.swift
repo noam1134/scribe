@@ -1,26 +1,31 @@
 /// Time phrases. Input is already lowercased.
 enum TimePhrases {
     static func parse(_ phrase: String) -> TimeValue? {
-        switch phrase {
-        case "noon": return TimeValue(minute: 12 * 60, pinsToday: false)
-        case "tonight": return TimeValue(minute: 20 * 60, pinsToday: true)
-        default: break
-        }
+        if let named = namedTimes[phrase] { return named }
         // With a prefix a bare hour is allowed ("at 9"); without one it is
         // not, so a lone "9" in a title is never read as a time.
         for prefix in ["at "] where phrase.hasPrefix(prefix) {
-            return clock(String(phrase.dropFirst(prefix.count)), allowsBareHour: true).map { TimeValue(minute: $0, pinsToday: false) }
+            let rest = String(phrase.dropFirst(prefix.count))
+            if let named = namedTimes[rest] { return named }
+            return clock(rest, allowsBareHour: true).map { TimeValue(minute: $0, pinsToday: false) }
         }
         return clock(phrase, allowsBareHour: false).map { TimeValue(minute: $0, pinsToday: false) }
     }
 
+    static let namedTimes: [String: TimeValue] = [
+        "noon": TimeValue(minute: 12 * 60, pinsToday: false),
+        "tonight": TimeValue(minute: 20 * 60, pinsToday: true),
+    ]
+
     /// "9am", "9:30pm", "9 am", "14:30", and (if allowed) "9" as 24-hour.
+    /// The only space allowed is one before am/pm, so "1 2" never merges into 12.
     static func clock(_ text: String, allowsBareHour: Bool) -> Int? {
-        var body = text.replacingOccurrences(of: " ", with: "")
+        var body = Substring(text)
         var meridiem: String?
         if body.hasSuffix("am") || body.hasSuffix("pm") {
             meridiem = String(body.suffix(2))
-            body.removeLast(2)
+            body = body.dropLast(2)
+            if body.hasSuffix(" ") { body = body.dropLast() }
         }
         let parts = body.split(separator: ":", omittingEmptySubsequences: false)
         guard (1...2).contains(parts.count),

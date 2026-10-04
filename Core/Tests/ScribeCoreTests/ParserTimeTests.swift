@@ -44,7 +44,7 @@ struct ParserTimeTests {
         #expect(F.parse("party fri tonight").due == DueDate(day: F.day(10, 9), minute: 20 * 60))
     }
 
-    @Test(arguments: ["room 9", "x 25:00", "x 9:5", "x 13pm", "x 0am", "x 9:60", "x at"])
+    @Test(arguments: ["room 9", "x 25:00", "x 9:5", "x 13pm", "x 0am", "x 9:60", "x at", "x at 1 2", "x 9 : 30"])
     func nonTimesStayInTitle(text: String) {
         let draft = F.parse(text)
         #expect(draft.title == text)
@@ -58,5 +58,21 @@ struct ParserTimeTests {
         #expect(draft.category == .matched(F.thailand.id))
         #expect(draft.due == DueDate(day: F.day(10, 9), minute: 18 * 60))
         #expect(draft.tokens.map(\.kind) == [.date, .time, .category, .kind])
+    }
+
+    @Test func spacesNeverMergeNumbers() {
+        let afternoon = F.parse("room 1 2:30pm")
+        #expect(afternoon.title == "room 1")
+        #expect(afternoon.due == DueDate(day: F.day(10, 5), minute: 14 * 60 + 30))
+        let morning = F.parse("take 1 9:30")
+        #expect(morning.title == "take 1")
+        #expect(morning.due == DueDate(day: F.day(10, 6), minute: 9 * 60 + 30))
+    }
+
+    @Test func atNoonKeepsTheDate() {
+        let draft = F.parse("call tomorrow at noon")
+        #expect(draft.title == "call")
+        #expect(draft.due == DueDate(day: F.day(10, 6), minute: 12 * 60))
+        #expect(F.parse("lunch at noon").due == DueDate(day: F.day(10, 5), minute: 12 * 60))
     }
 }
