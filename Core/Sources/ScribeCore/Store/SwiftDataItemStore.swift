@@ -177,7 +177,26 @@ public final class SwiftDataItemStore: ItemStore {
         try save(context)
     }
 
-    // MARK: Refresh
+    // MARK: Export & refresh
+
+    public func exportJSON() throws -> Data {
+        let context = ModelContext(container)
+        let document = ExportDocument(
+            version: ExportDocument.currentVersion,
+            exportedAt: now(),
+            categories: fetchCategories(context).map {
+                ExportedCategory(id: $0.id, name: $0.name, emoji: $0.emoji, colorName: $0.colorName, sortIndex: $0.sortIndex)
+            },
+            items: fetchItems(context).sorted { $0.createdAt < $1.createdAt }.map {
+                ExportedItem(
+                    id: $0.id, title: $0.title, body: $0.body, kind: $0.kind, categoryID: $0.category?.id,
+                    dueDay: $0.dueDay, dueMinute: $0.dueMinute, isDone: $0.isDone, doneAt: $0.doneAt,
+                    createdAt: $0.createdAt, updatedAt: $0.updatedAt
+                )
+            }
+        )
+        return try ExportDocument.encoder().encode(document)
+    }
 
     public func refresh() {
         revision += 1

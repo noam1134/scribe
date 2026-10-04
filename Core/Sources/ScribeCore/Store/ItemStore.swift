@@ -84,6 +84,7 @@ public protocol ItemStore: AnyObject, Observable {
     /// Items in the category move to the Inbox.
     func deleteCategory(_ id: UUID) throws
 
+    func exportJSON() throws -> Data
     /// Re-read everything (after a sync import or a write by another process).
     func refresh()
 }
