@@ -1,6 +1,6 @@
 /// When an item is due: a floating day plus an optional floating time
 /// (minutes after local midnight).
-public struct DueDate: Hashable, Comparable, Codable, Sendable {
+public struct DueDate: Hashable, Comparable, Sendable {
     public var day: LocalDay
     public var minute: Int?
 

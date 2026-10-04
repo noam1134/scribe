@@ -11,7 +11,8 @@ struct LocalDayTests {
         #expect(LocalDay(isoString: "2026-03-07") == day)
     }
 
-    @Test(arguments: ["", "2026-3-07", "2026/03/07", "2026-13-01", "2026-00-10", "abcd-ef-gh", "2026-03-07-01"])
+    @Test(arguments: ["", "2026-3-07", "2026/03/07", "2026-13-01", "2026-00-10", "abcd-ef-gh", "2026-03-07-01",
+                      "2026-02-31", "2027-02-29", "2026-+1-03", "+123-01-01", "0000-01-01", "２０２６-01-01"])
     func rejectsMalformedISOStrings(text: String) {
         #expect(LocalDay(isoString: text) == nil)
     }
@@ -30,6 +31,20 @@ struct LocalDayTests {
         // Israel leaves DST on Sunday 2026-10-25.
         #expect(LocalDay(2026, 10, 24).adding(days: 2, calendar: calendar) == LocalDay(2026, 10, 26))
         #expect(LocalDay(2026, 10, 5).adding(days: -6, calendar: calendar) == LocalDay(2026, 9, 29))
+    }
+
+    @Test(arguments: [Calendar.Identifier.buddhist, .hebrew, .japanese, .islamicUmmAlQura, .persian])
+    func nonGregorianDeviceCalendarsStillProduceGregorianDays(identifier: Calendar.Identifier) {
+        var deviceCalendar = Calendar(identifier: identifier)
+        deviceCalendar.timeZone = TimeZone(identifier: "Asia/Jerusalem")!
+        let moment = TestCalendar.date(2026, 10, 5, 10, 0)
+        let day = LocalDay(moment, calendar: deviceCalendar)
+        #expect(day == LocalDay(2026, 10, 5))
+        #expect(day.isoString == "2026-10-05")
+        #expect(day.adding(days: 1, calendar: deviceCalendar) == LocalDay(2026, 10, 6))
+        #expect(day.weekday(calendar: deviceCalendar) == 2)
+        #expect(LocalDay.validated(year: 2026, month: 2, day: 29, calendar: deviceCalendar) == nil)
+        #expect(LocalDay.validated(year: 2028, month: 2, day: 29, calendar: deviceCalendar) == LocalDay(2028, 2, 29))
     }
 
     @Test func weekdayIsSundayBased() {
