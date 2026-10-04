@@ -179,15 +179,16 @@ public final class SwiftDataItemStore: ItemStore {
 
     // MARK: Export & refresh
 
+    /// Throws instead of exporting an empty document when the store can't be read.
     public func exportJSON() throws -> Data {
         let context = ModelContext(container)
         let document = ExportDocument(
             version: ExportDocument.currentVersion,
             exportedAt: now(),
-            categories: fetchCategories(context).map {
+            categories: try allCategories(context).map {
                 ExportedCategory(id: $0.id, name: $0.name, emoji: $0.emoji, colorName: $0.colorName, sortIndex: $0.sortIndex)
             },
-            items: fetchItems(context).sorted { $0.createdAt < $1.createdAt }.map {
+            items: try allItems(context).sorted { ($0.createdAt, $0.id.uuidString) < ($1.createdAt, $1.id.uuidString) }.map {
                 ExportedItem(
                     id: $0.id, title: $0.title, body: $0.body, kind: $0.kind, categoryID: $0.category?.id,
                     dueDay: $0.dueDay, dueMinute: $0.dueMinute, isDone: $0.isDone, doneAt: $0.doneAt,
@@ -211,7 +212,7 @@ public final class SwiftDataItemStore: ItemStore {
 
     private func fetchItems(_ context: ModelContext) -> [Item] {
         do {
-            return try context.fetch(FetchDescriptor<Item>())
+            return try allItems(context)
         } catch {
             assertionFailure("Item fetch failed: \(error)")
             return []
@@ -219,13 +220,20 @@ public final class SwiftDataItemStore: ItemStore {
     }
 
     private func fetchCategories(_ context: ModelContext) -> [Category] {
-        let descriptor = FetchDescriptor<Category>(sortBy: [SortDescriptor(\.sortIndex), SortDescriptor(\.name)])
         do {
-            return try context.fetch(descriptor)
+            return try allCategories(context)
         } catch {
             assertionFailure("Category fetch failed: \(error)")
             return []
         }
+    }
+
+    private func allItems(_ context: ModelContext) throws -> [Item] {
+        try context.fetch(FetchDescriptor<Item>())
+    }
+
+    private func allCategories(_ context: ModelContext) throws -> [Category] {
+        try context.fetch(FetchDescriptor<Category>(sortBy: [SortDescriptor(\.sortIndex), SortDescriptor(\.name)]))
     }
 
     private func itemModel(_ id: UUID, in context: ModelContext) throws -> Item {

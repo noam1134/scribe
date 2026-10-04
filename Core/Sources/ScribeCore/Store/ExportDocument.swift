@@ -33,16 +33,25 @@ public struct ExportedItem: Codable, Equatable, Sendable {
 extension ExportDocument {
     static let currentVersion = 1
 
+    /// ISO-8601 with milliseconds, so `createdAt` ordering survives a round trip.
+    static let dateStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+
     static func encoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(date.formatted(dateStyle))
+        }
         return encoder
     }
 
     public static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let text = try decoder.singleValueContainer().decode(String.self)
+            return try Date(text, strategy: dateStyle)
+        }
         return decoder
     }
 }

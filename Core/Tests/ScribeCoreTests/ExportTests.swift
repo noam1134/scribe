@@ -40,4 +40,16 @@ struct ExportTests {
         #expect(text.contains("\"version\" : 1"))
         #expect(text.contains("\"kind\" : \"task\""))
     }
+
+    @Test func exportKeepsMilliseconds() throws {
+        let clock = TestClock()
+        clock.now = clock.now.addingTimeInterval(0.25)
+        let store = try makeStore(clock: clock)
+        try store.addItem(ItemDraft(title: "x"))
+        let data = try store.exportJSON()
+        let text = try #require(String(data: data, encoding: .utf8))
+        #expect(text.contains("\"createdAt\" : \"2026-10-05T07:00:00.250Z\""))
+        let document = try ExportDocument.decoder().decode(ExportDocument.self, from: data)
+        #expect(document.items.first?.createdAt == clock.now)
+    }
 }
