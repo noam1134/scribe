@@ -1,6 +1,7 @@
 import CoreData
 import Foundation
 import Observation
+import WidgetKit
 
 /// Phase 0 only. Answers spec §14 Q3: can we observe CloudKit sync events
 /// and remote-change notifications while using SwiftData?
@@ -28,6 +29,7 @@ final class SyncEventLog {
                 guard let self else { return }
                 self.remoteChangeCount += 1
                 self.append("remote change #\(self.remoteChangeCount)")
+                WidgetCenter.shared.reloadAllTimelines()
             }
         })
     }
