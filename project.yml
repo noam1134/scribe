@@ -20,6 +20,8 @@ targets:
     supportedDestinations: [iOS, macOS]
     sources:
       - App
+      - Spike/Shared
+      - Spike/App
     dependencies:
       - package: ScribeCore
       - target: ScribeWidgets
@@ -42,6 +44,8 @@ targets:
     supportedDestinations: [iOS, macOS]
     sources:
       - Widgets
+      - Spike/Shared
+      - Spike/Widget
     dependencies:
       - package: ScribeCore
     info:

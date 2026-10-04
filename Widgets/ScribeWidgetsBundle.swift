@@ -5,6 +5,8 @@ import WidgetKit
 struct ScribeWidgetsBundle: WidgetBundle {
     var body: some Widget {
         PlaceholderWidget()
+        ProbeWidget()
+        ProbeControl()
     }
 }
 
