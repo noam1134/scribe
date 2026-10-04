@@ -1,6 +1,6 @@
 import Foundation
 
-/// Date phrases. Input is already lowercased.
+/// Date phrases in English and Hebrew. Input is already lowercased.
 /// Numeric dates are day/month (Israeli order).
 enum DatePhrases {
     static func parse(_ phrase: String, today: LocalDay, calendar: Calendar) -> LocalDay? {
@@ -15,6 +15,7 @@ enum DatePhrases {
 
     static let dayOffsets: [String: Int] = [
         "today": 0, "tomorrow": 1, "tmr": 1, "tmrw": 1,
+        "היום": 0, "מחר": 1, "מחרתיים": 2,
     ]
 
     /// 1 = Sunday … 7 = Saturday.
@@ -25,7 +26,14 @@ enum DatePhrases {
         "fri": 6, "friday": 6, "sat": 7, "saturday": 7,
     ]
 
-    static let nextWeekPhrases: Set<String> = ["next week"]
+    static let hebrewWeekdays: [String: Int] = [
+        "ראשון": 1, "שני": 2, "שלישי": 3, "רביעי": 4, "חמישי": 5, "שישי": 6, "שבת": 7,
+    ]
+
+    /// Longest first: "ביום שישי", "יום שישי", "בשישי".
+    static let hebrewWeekdayPrefixes = ["ביום ", "יום ", "ב"]
+
+    static let nextWeekPhrases: Set<String> = ["next week", "שבוע הבא", "בשבוע הבא"]
 
     static let monthNames: [String: Int] = [
         "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
@@ -36,7 +44,12 @@ enum DatePhrases {
 
     static func weekday(in phrase: String) -> Int? {
         let english = phrase.hasPrefix("next ") ? String(phrase.dropFirst(5)) : phrase
-        return englishWeekdays[english]
+        if let weekday = englishWeekdays[english] { return weekday }
+        if let weekday = hebrewWeekdays[phrase] { return weekday }
+        for prefix in hebrewWeekdayPrefixes where phrase.hasPrefix(prefix) {
+            if let weekday = hebrewWeekdays[String(phrase.dropFirst(prefix.count))] { return weekday }
+        }
+        return nil
     }
 
     /// Strictly after today: "fri" typed on a Friday means next week's Friday.
@@ -47,11 +60,18 @@ enum DatePhrases {
     }
 
     static func relativeDays(_ phrase: String) -> Int? {
+        switch phrase {
+        case "בעוד יום": return 1
+        case "בעוד יומיים": return 2
+        case "בעוד שבוע": return 7
+        case "בעוד שבועיים": return 14
+        default: break
+        }
         let words = phrase.split(separator: " ").map(String.init)
         guard words.count == 3, let count = Int(words[1]), (1...365).contains(count) else { return nil }
         switch (words[0], words[2]) {
-        case ("in", "day"), ("in", "days"): return count
-        case ("in", "week"), ("in", "weeks"): return count * 7
+        case ("in", "day"), ("in", "days"), ("בעוד", "ימים"), ("בעוד", "יום"): return count
+        case ("in", "week"), ("in", "weeks"), ("בעוד", "שבועות"), ("בעוד", "שבוע"): return count * 7
         default: return nil
         }
     }

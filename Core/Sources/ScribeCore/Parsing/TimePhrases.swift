@@ -1,10 +1,11 @@
-/// Time phrases. Input is already lowercased.
+/// Time phrases in English and Hebrew. Input is already lowercased.
 enum TimePhrases {
     static func parse(_ phrase: String) -> TimeValue? {
         if let named = namedTimes[phrase] { return named }
-        // With a prefix a bare hour is allowed ("at 9"); without one it is
-        // not, so a lone "9" in a title is never read as a time.
-        for prefix in ["at "] where phrase.hasPrefix(prefix) {
+        // With a prefix a bare hour is allowed ("at 9", "ב-9"); without one it
+        // is not, so a lone "9" in a title is never read as a time.
+        // Longest prefix first: "בשעה " before "ב-" before "ב".
+        for prefix in ["at ", "בשעה ", "ב-", "ב"] where phrase.hasPrefix(prefix) {
             let rest = String(phrase.dropFirst(prefix.count))
             if let named = namedTimes[rest] { return named }
             return clock(rest, allowsBareHour: true).map { TimeValue(minute: $0, pinsToday: false) }
@@ -14,7 +15,9 @@ enum TimePhrases {
 
     static let namedTimes: [String: TimeValue] = [
         "noon": TimeValue(minute: 12 * 60, pinsToday: false),
+        "בצהריים": TimeValue(minute: 12 * 60, pinsToday: false),
         "tonight": TimeValue(minute: 20 * 60, pinsToday: true),
+        "הערב": TimeValue(minute: 20 * 60, pinsToday: true),
     ]
 
     /// "9am", "9:30pm", "9 am", "14:30", and (if allowed) "9" as 24-hour.
