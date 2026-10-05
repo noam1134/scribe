@@ -99,12 +99,14 @@ final class MacRouter {
         return true
     }
 
-    /// ⌘⌫ from the menu. A text field keeps its own ⌘⌫ (delete to the start
-    /// of the line): a menu shortcut would otherwise swallow it.
-    func deleteCommand() {
+    /// ⌘⌫ from the menu, with or without a Scribe window in front. A text
+    /// field — here, in the menu bar or in the hotkey panel — keeps its own
+    /// ⌘⌫ (delete to the start of the line): a menu shortcut, even a disabled
+    /// one, would otherwise swallow it.
+    static func deleteCommand(_ router: MacRouter?) {
         if let text = NSApp.keyWindow?.firstResponder as? NSTextView {
             text.deleteToBeginningOfLine(nil)
-        } else if !run(.delete) {
+        } else if router?.run(.delete) != true {
             NSSound.beep()
         }
     }

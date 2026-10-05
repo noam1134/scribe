@@ -28,10 +28,10 @@ struct MacCommands: Commands {
             Button(doneTitle) { router?.run(.toggleDone) }
                 .disabled(!(router?.canRun(.toggleDone) ?? false))
             Divider()
-            // Enabled while typing too: the router hands ⌘⌫ back to the field.
-            Button("Delete Item") { router?.deleteCommand() }
+            // Never disabled: a disabled menu shortcut still swallows ⌘⌫, which
+            // text fields need. The command hands it back to them.
+            Button("Delete Item") { MacRouter.deleteCommand(router) }
                 .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(router == nil)
         }
         CommandMenu("Go") {
             Button("Upcoming") { router?.run(.jump(0)) }

@@ -49,6 +49,9 @@ final class QuickAddPanelController {
 
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
+        // SwiftUI's focus state doesn't reach a hand-made window before it
+        // is key; put the caret in the field once the content is laid out.
+        DispatchQueue.main.async { panel.focusTextField() }
         installEscapeMonitor(for: panel)
         MacLog.hotkey.info("Quick-add panel shown")
     }
@@ -84,14 +87,15 @@ final class QuickAddPanelController {
 }
 
 /// Borderless, transparent, floating on every Space; the SwiftUI content
-/// draws the glass.
+/// draws the glass. Non-activating, so it takes the keyboard even before
+/// (or if macOS declines) the app's activation.
 final class QuickAddPanel: NSPanel {
     var onResignKey: (() -> Void)?
 
     init() {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: QuickAddPanelController.width, height: 130),
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true
         )
@@ -111,6 +115,14 @@ final class QuickAddPanel: NSPanel {
     override func resignKey() {
         super.resignKey()
         onResignKey?()
+    }
+
+    func focusTextField() {
+        func field(in view: NSView) -> NSTextField? {
+            if let field = view as? NSTextField, field.isEditable { return field }
+            return view.subviews.lazy.compactMap(field(in:)).first
+        }
+        if let field = contentView.flatMap(field(in:)) { makeFirstResponder(field) }
     }
 
     /// Opens on the screen under the pointer (spec §9.3).
