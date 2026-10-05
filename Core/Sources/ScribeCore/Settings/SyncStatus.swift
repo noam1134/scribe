@@ -32,6 +32,8 @@ public enum SyncFailureReason: Codable, Equatable, Sendable {
     case accountNeedsAttention
     /// Anything else: its error domain and code, e.g. "CKErrorDomain 15".
     case other(String)
+    /// It failed without saying why.
+    case unexplained
 
     /// Nil for an operation the system cancelled — not a failure to show.
     init?(error: NSError) {
@@ -68,15 +70,24 @@ public enum SyncFailureReason: Codable, Equatable, Sendable {
         } else if error.domain == NSCocoaErrorDomain, error.code == coreDataNoAccount {
             return .notSignedIn
         }
-        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError,
-           let reason = classify(underlying), reason.isSpecific {
-            return reason
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            // A cancellation wrapped in another error is still a cancellation.
+            guard let reason = classify(underlying) else { return nil }
+            if reason.isSpecific { return reason }
         }
         return .other("\(error.domain) \(error.code)")
     }
 
+    /// Offline or iCloud busy: any sync that works afterwards proves it's over.
+    var isConnectionTrouble: Bool {
+        self == .offline || self == .iCloudBusy
+    }
+
     private var isSpecific: Bool {
-        if case .other = self { false } else { true }
+        switch self {
+        case .other, .unexplained: false
+        default: true
+        }
     }
 
     /// Lower is more useful to the reader.
@@ -87,7 +98,7 @@ public enum SyncFailureReason: Codable, Equatable, Sendable {
         case .storageFull: 2
         case .offline: 3
         case .iCloudBusy: 4
-        case .other: 5
+        case .other, .unexplained: 5
         }
     }
 }
@@ -114,7 +125,7 @@ public struct SyncEvent: Equatable, Sendable {
             guard let reason = SyncFailureReason(error: error) else { return nil }
             self.init(kind: kind, endDate: endDate, failure: reason)
         } else {
-            self.init(kind: kind, endDate: endDate, failure: .other("no error"))
+            self.init(kind: kind, endDate: endDate, failure: .unexplained)
         }
     }
 }
@@ -138,9 +149,12 @@ public struct SyncLog: Codable, Equatable, Sendable {
     /// The end of the latest successful import or export. Setup alone
     /// doesn't move data, so it doesn't count.
     public private(set) var lastSuccess: Date?
-    /// At most one per kind: that kind's latest event failed and none has
-    /// succeeded since.
+    /// At most one per kind: that kind's latest event failed and nothing
+    /// that clears it has succeeded since.
     public private(set) var failures: [SyncFailure] = []
+    /// The iCloud account this log describes (CloudKit's user record name
+    /// for Scribe's container). Nil until one has been seen.
+    public private(set) var accountID: String?
 
     public init() {}
 
@@ -159,10 +173,34 @@ public struct SyncLog: Codable, Equatable, Sendable {
             if event.kind != .setup, lastSuccess.map({ $0 < event.endDate }) ?? true {
                 lastSuccess = event.endDate
             }
-            // An import or export can only run once setup worked.
+            let synced = event.kind != .setup
             failures.removeAll { failure in
-                failure.date <= event.endDate && (failure.kind == event.kind || (event.kind != .setup && failure.kind == .setup))
+                guard failure.date <= event.endDate else { return false }
+                // Its own kind works again. A sync also proves setup worked
+                // and the connection is back, whichever way it went.
+                return failure.kind == event.kind
+                    || (synced && (failure.kind == .setup || failure.reason.isConnectionTrouble))
             }
+        }
+        return self != before
+    }
+
+    /// What the app learned about the account (`previous` is what it knew
+    /// before, in this process). "Last synced" must not describe another
+    /// account, so the log starts over when the account is a different one,
+    /// or when a sign-in was seen and the account can't be told. Signing
+    /// out keeps it. Returns whether anything changed.
+    @discardableResult
+    public mutating func accountChecked(previous: CloudAccountState, current: CloudAccountState, identity: String?) -> Bool {
+        guard current == .available else { return false }
+        let signedIn = previous == .noAccount
+        let before = self
+        if let identity {
+            let isOther = accountID.map { $0 != identity } ?? signedIn
+            if isOther { self = SyncLog() }
+            accountID = identity
+        } else if signedIn {
+            self = SyncLog()
         }
         return self != before
     }

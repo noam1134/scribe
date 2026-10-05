@@ -77,9 +77,18 @@ struct SyncStatusTextTests {
     @Test func aFailureShowsWhileSignedIn() {
         let offline = SyncEvent(kind: .export, endDate: now, failure: .offline)
         let status = text(.available, log(syncedAt: TestCalendar.date(2026, 10, 5, 9, 14), failing: offline))
+        #expect(status.headline == "Sync paused", "not \"Syncing\" while something fails")
         #expect(status.problem == "Offline — changes are saved on this iPhone and upload once it’s back online.")
         #expect(status.symbol == .warning)
         #expect(status.lastSynced == "Last synced at 09:14")
+    }
+
+    @Test func aSetupThatKeepsFailingPausesSync() {
+        let setup = SyncEvent(kind: .setup, endDate: now, failure: .other("CKErrorDomain 6"))
+        let status = text(.available, log(failing: setup))
+        #expect(status.headline == "Sync paused")
+        #expect(status.problem == "iCloud sync couldn’t start (CKErrorDomain 6). Scribe will try again.")
+        #expect(text(.unknown, log(failing: setup)).headline == "Couldn’t check iCloud", "the account line still leads")
     }
 
     @Test func theAccountRowExplainsInsteadOfTheError() {
@@ -91,6 +100,10 @@ struct SyncStatusTextTests {
     }
 
     nonisolated static let problems: [(SyncFailureReason, SyncEventKind, String)] = [
+        (.offline, .import, "Offline — changes from your other devices arrive once it’s back online."),
+        (.offline, .setup, "Offline — changes are saved on this iPhone and sync once it’s back online."),
+        (.unexplained, .export, "The last upload to iCloud failed. Scribe will try again."),
+        (.unexplained, .setup, "iCloud sync couldn’t start. Scribe will try again."),
         (.iCloudBusy, .import, "iCloud is busy — Scribe will try again shortly."),
         (.notSignedIn, .setup, "iCloud didn’t accept the sign-in. Check your Apple Account in Settings."),
         (.storageFull, .export, "Your iCloud storage is full — changes stay on this iPhone until there’s room."),

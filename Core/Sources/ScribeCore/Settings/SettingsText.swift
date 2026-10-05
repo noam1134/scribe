@@ -84,7 +84,10 @@ public struct SyncStatusText: Equatable, Sendable {
         let accountExplains = [.noAccount, .restricted, .temporarilyUnavailable].contains(account)
         if !accountExplains, let failure = log.latestFailure {
             problem = Self.sentence(for: failure, device: device)
-            if symbol == .on { symbol = .warning }
+            if symbol == .on {
+                symbol = .warning
+                headline = "Sync paused"
+            }
         } else {
             problem = nil
         }
@@ -108,7 +111,11 @@ public struct SyncStatusText: Equatable, Sendable {
     private static func sentence(for failure: SyncFailure, device: DeviceKind) -> String {
         switch failure.reason {
         case .offline:
-            "Offline — changes are saved on this \(device.name) and upload once it’s back online."
+            switch failure.kind {
+            case .import: "Offline — changes from your other devices arrive once it’s back online."
+            case .export: "Offline — changes are saved on this \(device.name) and upload once it’s back online."
+            case .setup: "Offline — changes are saved on this \(device.name) and sync once it’s back online."
+            }
         case .iCloudBusy:
             "iCloud is busy — Scribe will try again shortly."
         case .notSignedIn:
@@ -118,11 +125,17 @@ public struct SyncStatusText: Equatable, Sendable {
         case .accountNeedsAttention:
             "iCloud needs attention — check your Apple Account in \(device.settingsAppName)."
         case .other(let code):
-            switch failure.kind {
-            case .setup: "iCloud sync couldn’t start (\(code)). Scribe will try again."
-            case .import: "The last download from iCloud failed (\(code)). Scribe will try again."
-            case .export: "The last upload to iCloud failed (\(code)). Scribe will try again."
-            }
+            Self.failed(failure.kind, code: " (\(code))")
+        case .unexplained:
+            Self.failed(failure.kind, code: "")
+        }
+    }
+
+    private static func failed(_ kind: SyncEventKind, code: String) -> String {
+        switch kind {
+        case .setup: "iCloud sync couldn’t start\(code). Scribe will try again."
+        case .import: "The last download from iCloud failed\(code). Scribe will try again."
+        case .export: "The last upload to iCloud failed\(code). Scribe will try again."
         }
     }
 }
