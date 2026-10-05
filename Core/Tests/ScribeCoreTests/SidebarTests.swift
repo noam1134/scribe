@@ -40,10 +40,11 @@ struct SidebarTests {
     }
 
     @Test func aCategoryDeletedElsewhereFallsBackToUpcoming() {
-        #expect(Sidebar.validated(.category(trip.id), categories: categories) == .category(trip.id))
-        #expect(Sidebar.validated(.category(UUID()), categories: categories) == .upcoming)
-        #expect(Sidebar.validated(.inbox, categories: []) == .inbox)
-        #expect(Sidebar.validated(.upcoming, categories: []) == .upcoming)
+        let ids = categories.map(\.id)
+        #expect(Sidebar.validated(.category(trip.id), categoryIDs: ids) == .category(trip.id))
+        #expect(Sidebar.validated(.category(UUID()), categoryIDs: ids) == .upcoming)
+        #expect(Sidebar.validated(.inbox, categoryIDs: []) == .inbox)
+        #expect(Sidebar.validated(.upcoming, categoryIDs: []) == .upcoming)
     }
 
     @Test func deletingTheSelectedCategorySelectsItsNeighbour() {

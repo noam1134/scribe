@@ -46,8 +46,8 @@ public enum Sidebar {
 
     /// A category that no longer exists (deleted on another device) falls
     /// back to Upcoming.
-    public static func validated(_ selection: SidebarEntry, categories: [CategorySnapshot]) -> SidebarEntry {
-        guard case .category(let id) = selection, !categories.contains(where: { $0.id == id }) else { return selection }
+    public static func validated(_ selection: SidebarEntry, categoryIDs: [UUID]) -> SidebarEntry {
+        guard case .category(let id) = selection, !categoryIDs.contains(id) else { return selection }
         return .upcoming
     }
 
