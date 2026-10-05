@@ -98,6 +98,7 @@ From the Phase 4 review.
 - Siri replies are English with the user's region formats (dates); revisit at localization.
 - No undo for a widget tick.
 - Check the widgets in tinted and clear home-screen modes.
+- Per-category widget and Control are gone (2026-10-06): on the iPhone the system handed the intent-configured widget and Control no intent (widget: CHSErrorDomain 1103 "Intent configuration is required but was not provided"; Control: `ControlError.intentConfigurationNotFound`), so the widget stayed a placeholder and the Control did nothing. Both are static now. The simulator did pass an intent. Bring the category choice back once we know why the device drops it (try a Release/TestFlight build first).
 
 ## Phase 5 follow-ups
 

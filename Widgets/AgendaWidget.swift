@@ -1,13 +1,18 @@
-import AppIntents
 import ScribeCore
 import SwiftUI
 import WidgetKit
 
-/// The agenda widget (spec §10): what's coming up, from every category or
-/// one, on the iPhone home and lock screens and the Mac desktop.
+/// The agenda widget (spec §10): what's coming up in every category, on
+/// the iPhone home and lock screens and the Mac desktop.
+///
+/// Static, not intent-configured: on the iPhone the system handed the
+/// configured widget no intent at all ("Intent configuration is required but
+/// was not provided", CHSErrorDomain 1103), so it never left the
+/// placeholder. A static widget needs none, and widgets already on the home
+/// screen keep their kind and start working.
 struct AgendaWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: WidgetKinds.agenda, intent: AgendaWidgetIntent.self, provider: AgendaProvider()) { entry in
+        StaticConfiguration(kind: WidgetKinds.agenda, provider: AgendaProvider()) { entry in
             AgendaWidgetView(entry: entry.entry)
         }
         .configurationDisplayName("Upcoming")
@@ -24,51 +29,40 @@ struct AgendaWidget: Widget {
     }
 }
 
-struct AgendaWidgetIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "Upcoming"
-    static let description: IntentDescription? = IntentDescription("What’s coming up, from every category or just one.")
-
-    /// A deleted category arrives as `CategoryEntity.deleted`, and the
-    /// widget says so (spec §10.1 scope; no silent switch to all).
-    @Parameter(title: "Category", description: "Leave empty to show every category.")
-    var category: CategoryEntity?
-
-    init() {}
-}
-
 struct AgendaEntry: TimelineEntry {
     let entry: WidgetEntry
 
     var date: Date { entry.date }
 }
 
-struct AgendaProvider: AppIntentTimelineProvider {
+struct AgendaProvider: TimelineProvider {
     func placeholder(in context: Context) -> AgendaEntry {
         AgendaEntry(entry: WidgetSamples.entry())
     }
 
-    func snapshot(for configuration: AgendaWidgetIntent, in context: Context) async -> AgendaEntry {
+    func getSnapshot(in context: Context, completion: @escaping @Sendable (AgendaEntry) -> Void) {
         // The widget gallery shows an example rather than an empty list.
-        if context.isPreview { return placeholder(in: context) }
-        let categoryID = configuration.category?.id
-        let plan = await MainActor.run { Self.plan(categoryID: categoryID, now: Date()) }
-        return AgendaEntry(entry: plan.entries[0])
+        if context.isPreview { return completion(placeholder(in: context)) }
+        Task { @MainActor in
+            completion(AgendaEntry(entry: Self.plan(now: Date()).entries[0]))
+        }
     }
 
-    func timeline(for configuration: AgendaWidgetIntent, in context: Context) async -> Timeline<AgendaEntry> {
-        let categoryID = configuration.category?.id
-        let plan = await MainActor.run { Self.plan(categoryID: categoryID, now: Date()) }
-        return Timeline(entries: plan.entries.map(AgendaEntry.init), policy: .after(plan.refreshAt))
+    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<AgendaEntry>) -> Void) {
+        Task { @MainActor in
+            let plan = Self.plan(now: Date())
+            completion(Timeline(entries: plan.entries.map(AgendaEntry.init), policy: .after(plan.refreshAt)))
+        }
     }
 
     @MainActor
-    private static func plan(categoryID: UUID?, now: Date) -> WidgetTimeline {
+    private static func plan(now: Date) -> WidgetTimeline {
         let builder = WidgetEntryBuilder()
         guard let store = try? SharedStore.open() else { return builder.unavailable(now: now) }
         return builder.timeline(
             items: store.datedOpenItems(),
             categories: store.categories,
-            categoryID: categoryID,
+            categoryID: nil,
             now: now,
             freshAt: FreshnessStamp.date
         )
