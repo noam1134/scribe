@@ -71,10 +71,20 @@ Deferred in the Phase 2 (iPhone app) reviews.
 Built and checked in the simulator (see the Phase 4 plan). Still open:
 
 - **Device checks** (simulator can't prove them): Shortcuts lists Scribe on the iPhone; the widget checkbox's extension write reaches the Mac via iCloud after the iPhone app next opens; `BGAppRefreshTask` runs and actually triggers an iCloud import (the simulator refuses BG tasks); Mac desktop widget (M7) reads the Mac store; "Add to Scribe" Control appears in the Mac's Control Center / menu bar (Q5); an open Mac app refreshes when the desktop widget's checkbox writes (cross-process `NSPersistentStoreRemoteChange`; activation is the backstop); Siri voice flow with category disambiguation.
-- Tinted and clear home-screen modes weren't looked at (light, dark and the lock screen were).
-- Widget checkboxes are 15 pt tap targets.
 - Siri can't create a category from an unknown `#tag` (the tag stays in the title and Siri asks for an existing category).
 - Per-category Siri phrases ("Add to Thailand in Scribe") would need `updateAppShortcutParameters()` whenever categories change.
+
+## Phase 4 follow-ups
+
+From the Phase 4 review.
+
+- Widget links and the composer: an item/Upcoming link closes an open composer and loses its draft; an `add?category=` link while the composer is open keeps the old category.
+- The medium/large widgets fit 5/14 lines whatever the Dynamic Type size; scale the budgets.
+- A category widget's background tap opens Upcoming; it should open that category (needs a `scribe://category/<id>` link).
+- Siri: ask for the category by spoken name (`requestValue`) before listing every category.
+- Siri replies are English with the user's region formats (dates); revisit at localization.
+- No undo for a widget tick.
+- Check the widgets in tinted and clear home-screen modes.
 
 ## Phase 5–6
 
