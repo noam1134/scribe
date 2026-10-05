@@ -238,4 +238,24 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(title.waitForNonExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Renew gym membership"].exists)
     }
+
+    // MARK: Notes (spec §20)
+
+    func testComposerSavesNotes() {
+        app.buttons["quickAddBar"].tap()
+        let field = app.textFields["quickAddField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("Pack bags #errands")
+        app.buttons["newCategoryChip"].tap()
+        let notes = app.descendants(matching: .any)["quickAddNotes"].firstMatch
+        notes.tap()
+        notes.typeText("Passport\nCharger")
+        app.buttons["Add"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+
+        app.staticTexts["Pack bags"].tap()
+        let saved = app.descendants(matching: .any)["notesField"].firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
+        XCTAssertEqual(saved.value as? String, "Passport\nCharger")
+    }
 }

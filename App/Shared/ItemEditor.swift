@@ -74,6 +74,7 @@ struct ItemEditor: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1...6)
                 .layoutDirection(of: text.notes)
+                .accessibilityIdentifier("notesField")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     dateChip

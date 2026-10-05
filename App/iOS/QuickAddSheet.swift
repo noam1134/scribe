@@ -1,14 +1,21 @@
 import ScribeCore
 import SwiftUI
 
-/// The composer: one line of text, live chips for what the parser
-/// understood (tap one to undo it), a row of categories to file it into,
-/// task/memo toggle, Add (spec §8, §19 — Add waits for a category).
+/// The composer: one line of text with notes under it, live chips for what
+/// the parser understood (tap one to undo it), a row of categories to file
+/// it into, task/memo toggle, Add (spec §8, §19, §20 — Add waits for a
+/// category). Return in the main line saves; focusing Notes grows the sheet.
 struct QuickAddSheet: View {
+    private enum Field { case title, notes }
+
+    /// Fits the main line, one line of notes, the chips and the categories.
+    private static let compact = PresentationDetent.height(252)
+
     @State private var composer: QuickAddComposer
+    @State private var detent = QuickAddSheet.compact
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
-    @FocusState private var focused: Bool
+    @FocusState private var focus: Field?
 
     init(store: any ItemStore, categoryID: UUID?) {
         let composer = QuickAddComposer(store: store)
@@ -20,29 +27,40 @@ struct QuickAddSheet: View {
         // One parse per keystroke: every derived value comes from this.
         let live = composer.liveParse
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Button {
-                    composer.isMemo.toggle()
-                } label: {
-                    Image(systemName: composer.isMemo ? "note.text" : "checkmark.circle")
-                        .font(.title2)
-                        .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Button {
+                        composer.isMemo.toggle()
+                    } label: {
+                        kindIcon.foregroundStyle(.tint)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(composer.isMemo ? "Memo" : "Task")
+                    .accessibilityIdentifier("kindToggle")
+
+                    TextField("Add a task or note", text: $composer.text)
+                        .font(.title3)
+                        .focused($focus, equals: .title)
+                        .submitLabel(.done)
+                        .onSubmit(save)
+                        .layoutDirection(of: composer.text)
+                        .accessibilityIdentifier("quickAddField")
+
+                    Button("Add", action: save)
+                        .buttonStyle(.glassProminent)
+                        .disabled(!live.canSave)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(composer.isMemo ? "Memo" : "Task")
-                .accessibilityIdentifier("kindToggle")
-
-                TextField("Add a task or note", text: $composer.text)
-                    .font(.title3)
-                    .focused($focused)
-                    .submitLabel(.done)
-                    .onSubmit(save)
-                    .layoutDirection(of: composer.text)
-                    .accessibilityIdentifier("quickAddField")
-
-                Button("Add", action: save)
-                    .buttonStyle(.glassProminent)
-                    .disabled(!live.canSave)
+                HStack(spacing: 10) {
+                    // As wide as the toggle, so Notes lines up with the text.
+                    kindIcon.hidden().frame(height: 0)
+                    TextField("Notes", text: $composer.notes, axis: .vertical)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1...8)
+                        .focused($focus, equals: .notes)
+                        .layoutDirection(of: composer.notes)
+                        .accessibilityIdentifier("quickAddNotes")
+                }
             }
             QuickAddChipRow(composer: composer, live: live)
                 .buttonStyle(.glass)
@@ -50,10 +68,19 @@ struct QuickAddSheet: View {
                 .buttonStyle(.glass)
         }
         .padding(20)
-        .presentationDetents([.height(214)])
+        .frame(maxHeight: .infinity, alignment: .top)
+        .presentationDetents([Self.compact, .large], selection: $detent)
         .presentationDragIndicator(.visible)
-        .onAppear { focused = true }
+        .onAppear { focus = .title }
+        .onChange(of: focus) { _, field in
+            if field == .notes { withAnimation(.snappy) { detent = .large } }
+        }
         .saveErrorAlert(router)
+    }
+
+    private var kindIcon: some View {
+        Image(systemName: composer.isMemo ? "note.text" : "checkmark.circle")
+            .font(.title2)
     }
 
     private func save() {
