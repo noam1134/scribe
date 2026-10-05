@@ -5,27 +5,39 @@ import SwiftUI
 /// glass chips for date, category and kind. Text saves on Return (which also
 /// closes the editor), when the editor goes away and when the app leaves the
 /// foreground; chips save immediately. Only the text fields the user changed
-/// are written (`ItemTextDraft`).
+/// are written (`ItemTextDraft`). On the Mac the title is focused when the
+/// editor opens and Esc closes it (spec §9.3).
 struct ItemEditor: View {
     let store: any ItemStore
     let item: ItemSnapshot
     let categories: [CategorySnapshot]
+    /// Runs a store write and shows a refusal (each platform's alert).
+    let perform: @MainActor (() throws -> Void) -> Void
     let close: () -> Void
 
     private enum InlinePicker { case date, time }
 
-    @Environment(AppRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
     @State private var text: ItemTextDraft
     @State private var picker: InlinePicker?
+    #if os(macOS)
+    @FocusState private var titleFocused: Bool
+    #endif
 
     private let calendar = Calendar.autoupdatingCurrent
     private var today: LocalDay { LocalDay(Date(), calendar: calendar) }
 
-    init(store: any ItemStore, item: ItemSnapshot, categories: [CategorySnapshot], close: @escaping () -> Void) {
+    init(
+        store: any ItemStore,
+        item: ItemSnapshot,
+        categories: [CategorySnapshot],
+        perform: @escaping @MainActor (() throws -> Void) -> Void,
+        close: @escaping () -> Void
+    ) {
         self.store = store
         self.item = item
         self.categories = categories
+        self.perform = perform
         self.close = close
         _text = State(initialValue: ItemTextDraft(title: item.title, notes: item.body))
     }
@@ -41,6 +53,9 @@ struct ItemEditor: View {
                     close()
                 }
                 .accessibilityIdentifier("titleField")
+                #if os(macOS)
+                .focused($titleFocused)
+                #endif
             TextField("Notes", text: $text.notes, axis: .vertical)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -61,10 +76,7 @@ struct ItemEditor: View {
                 DatePicker("Date", selection: dayBinding, displayedComponents: .date)
                     .datePickerStyle(.graphical)
             case .time:
-                DatePicker("Time", selection: timeBinding, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    .frame(maxWidth: .infinity)
+                timePicker
             case nil:
                 EmptyView()
             }
@@ -74,6 +86,27 @@ struct ItemEditor: View {
             // The app may be ended in the background: keep what was typed.
             if phase != .active { saveText() }
         }
+        #if os(macOS)
+        .onAppear { titleFocused = true }
+        .onExitCommand {
+            finish()
+            close()
+        }
+        #endif
+    }
+
+    @ViewBuilder private var timePicker: some View {
+        #if os(iOS)
+        DatePicker("Time", selection: timeBinding, displayedComponents: .hourAndMinute)
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+        #else
+        DatePicker("Time", selection: timeBinding, displayedComponents: .hourAndMinute)
+            .datePickerStyle(.stepperField)
+            .labelsHidden()
+            .frame(maxWidth: .infinity, alignment: .leading)
+        #endif
     }
 
     // MARK: Chips
@@ -193,7 +226,7 @@ struct ItemEditor: View {
     private func write(_ changes: ItemTextDraft.Changes, _ edit: (inout ItemEdit) -> Void) {
         // Deleted (swiped away, or on another device): nothing to save into.
         guard store.item(item.id) != nil else { return }
-        router.perform {
+        perform {
             try store.updateItem(item.id) {
                 changes.apply(to: &$0)
                 edit(&$0)

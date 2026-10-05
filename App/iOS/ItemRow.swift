@@ -26,7 +26,7 @@ struct ItemRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             marker
             if isExpanded {
-                ItemEditor(store: store, item: item, categories: categories) { setExpanded(false) }
+                ItemEditor(store: store, item: item, categories: categories, perform: router.perform) { setExpanded(false) }
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
@@ -82,18 +82,7 @@ struct ItemRow: View {
     }
 
     private var subtitle: String? {
-        var parts: [String] = []
-        if let due = item.due {
-            let labels = DueLabels()
-            let today = LocalDay(Date(), calendar: labels.calendar)
-            if showsDay {
-                parts.append(labels.due(due, today: today))
-            } else if let minute = due.minute {
-                parts.append(labels.time(minute))
-            }
-        }
-        if showsCategory, let category { parts.append(category.displayName) }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        item.subtitle(category: category, showsDay: showsDay, showsCategory: showsCategory)
     }
 
     @ViewBuilder private var menu: some View {
