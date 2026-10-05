@@ -10,6 +10,14 @@ struct ScribeApp: App {
 
     init() {
         _ = ProbeStore.container
+        ProbeLogFile.append("launched \(CommandLine.arguments.dropFirst().joined(separator: " "))")
+        if CommandLine.arguments.contains("-probeAdd") {
+            do {
+                try ProbeStore.add(source: "launch-arg")
+            } catch {
+                ProbeLogFile.append("launch-arg add FAILED: \(error)")
+            }
+        }
     }
 
     var body: some Scene {

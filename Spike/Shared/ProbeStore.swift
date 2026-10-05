@@ -31,8 +31,10 @@ enum ProbeStore {
     static func add(source: String) throws {
         let context = ModelContext(container)
         let stamp = Date.now.formatted(date: .omitted, time: .standard)
-        context.insert(ProbeNote(text: "\(source) via \(processLabel) @ \(stamp)"))
+        let text = "\(source) via \(processLabel) @ \(stamp)"
+        context.insert(ProbeNote(text: text))
         try context.save()
+        ProbeLogFile.append("added note: \(text)")
         WidgetCenter.shared.reloadAllTimelines()
     }
 

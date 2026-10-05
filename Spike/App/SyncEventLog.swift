@@ -56,5 +56,6 @@ final class SyncEventLog {
 
     private func append(_ text: String) {
         entries.insert(Entry(at: .now, text: text), at: 0)
+        ProbeLogFile.append(text)
     }
 }

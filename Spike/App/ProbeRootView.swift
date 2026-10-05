@@ -53,6 +53,7 @@ struct ProbeRootView: View {
         }
         .onAppear(perform: refresh)
         .onChange(of: scenePhase) { _, phase in
+            ProbeLogFile.append("scene \(phase)")
             if phase == .active { refresh() }
         }
         .onChange(of: log.remoteChangeCount) { refresh() }
