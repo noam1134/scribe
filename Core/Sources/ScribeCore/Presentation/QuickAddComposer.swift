@@ -17,6 +17,9 @@ public final class QuickAddComposer {
     }
 
     public var text: String = ""
+    /// Multi-line notes, saved as the item’s body without surrounding blank
+    /// space. Never parsed.
+    public var notes: String = ""
     /// The ✓/📝 toggle. `!memo` typed in the text also makes a memo.
     public var isMemo: Bool = false
     /// Category preselected by context (composing from a category screen or
@@ -106,7 +109,7 @@ public final class QuickAddComposer {
     }
 
     /// Adds the item and clears the composer. Returns nil — and keeps the
-    /// text — when there is no title or no category yet. An unknown `#tag`
+    /// text and notes — when there is no title or no category yet. An unknown `#tag`
     /// that wasn't turned into a category stays in the title.
     @discardableResult
     public func save() throws -> UUID? {
@@ -120,6 +123,7 @@ public final class QuickAddComposer {
         guard var item = draft.itemDraft else { return nil }
         if isMemo { item.kind = .memo }
         item.categoryID = categoryID
+        item.body = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let id = try store.addItem(item)
         reset()
         return id
@@ -127,6 +131,7 @@ public final class QuickAddComposer {
 
     public func reset() {
         text = ""
+        notes = ""
         isMemo = false
         disabled = []
         selectedCategoryID = nil

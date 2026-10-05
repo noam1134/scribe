@@ -217,4 +217,63 @@ struct QuickAddComposerTests {
         #expect(try composer.save() == nil)
         #expect(store.items(.inbox).isEmpty)
     }
+
+    // MARK: Notes
+
+    @Test func notesBecomeTheBodyAndAreCleared() throws {
+        let (store, composer) = try make()
+        try store.addCategory(CategoryDraft(name: "Thailand"))
+        composer.text = "book flights fri #thailand"
+        composer.notes = "Window seat\nMorning flight"
+        let id = try #require(try composer.save())
+        let item = try #require(store.item(id))
+        #expect(item.title == "book flights")
+        #expect(item.body == "Window seat\nMorning flight")
+        #expect(item.kind == .task)
+        #expect(composer.notes.isEmpty)
+    }
+
+    @Test func memoKeepsItsNotes() throws {
+        let (store, composer) = try make()
+        let home = try store.addCategory(CategoryDraft(name: "Home"))
+        composer.defaultCategoryID = home
+        composer.isMemo = true
+        composer.text = "wifi password"
+        composer.notes = "hunter2"
+        let item = try #require(try composer.save().flatMap(store.item))
+        #expect(item.kind == .memo)
+        #expect(item.body == "hunter2")
+    }
+
+    /// Only the surrounding blank lines and spaces go; the user's own line
+    /// breaks stay. Notes are never parsed.
+    @Test func notesAreTrimmedNotParsed() throws {
+        let (store, composer) = try make()
+        let home = try store.addCategory(CategoryDraft(name: "Home"))
+        composer.defaultCategoryID = home
+        composer.text = "pack"
+        composer.notes = "\n  passport\n\ncharger tomorrow #work  \n"
+        let item = try #require(try composer.save().flatMap(store.item))
+        #expect(item.body == "passport\n\ncharger tomorrow #work")
+        #expect(item.due == nil)
+        #expect(composer.liveParse.chips.isEmpty)
+    }
+
+    @Test func notesAloneCannotSaveAndAreKept() throws {
+        let (store, composer) = try make()
+        composer.defaultCategoryID = try store.addCategory(CategoryDraft(name: "Home"))
+        composer.notes = "just notes"
+        #expect(!composer.canSave)
+        #expect(try composer.save() == nil)
+        #expect(composer.notes == "just notes")
+    }
+
+    @Test func resetClearsNotes() throws {
+        let (_, composer) = try make()
+        composer.text = "x"
+        composer.notes = "y"
+        composer.reset()
+        #expect(composer.text.isEmpty)
+        #expect(composer.notes.isEmpty)
+    }
 }
