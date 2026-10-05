@@ -200,7 +200,7 @@ private struct ExportSection: View {
             Text("Every category and item, done ones included, as one JSON file — a backup you can keep anywhere.")
         }
         #if os(macOS)
-        .fileExporter(isPresented: $isExporting, item: export, contentTypes: [.json], defaultFilename: SettingsExport.filename) { result in
+        .fileExporter(isPresented: $isExporting, item: export, contentTypes: [.json], defaultFilename: SettingsExport.filenameWithoutExtension) { result in
             if case .failure(let error) = result { failure = error.localizedDescription }
             export = nil
         } onCancellation: {

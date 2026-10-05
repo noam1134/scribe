@@ -16,6 +16,11 @@ enum SettingsExport {
         ExportDocument.suggestedFilename(now: Date(), calendar: .autoupdatingCurrent)
     }
 
+    /// "Scribe-2026-10-05": the save panel adds the extension for JSON.
+    static var filenameWithoutExtension: String {
+        (filename as NSString).deletingPathExtension
+    }
+
     #if os(iOS)
     /// The export as a file in a fresh temporary folder (the previous one
     /// is removed), for the share sheet.
