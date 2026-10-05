@@ -3,7 +3,9 @@ import SwiftUI
 
 /// A tapped row's inline editor (spec §9.2): title, notes, and a row of
 /// glass chips for date, category and kind. Text saves on Return (which also
-/// closes the editor) and when the editor goes away; chips save immediately.
+/// closes the editor), when the editor goes away and when the app leaves the
+/// foreground; chips save immediately. Only the text fields the user changed
+/// are written (`ItemTextDraft`).
 struct ItemEditor: View {
     let store: any ItemStore
     let item: ItemSnapshot
@@ -13,8 +15,8 @@ struct ItemEditor: View {
     private enum InlinePicker { case date, time }
 
     @Environment(AppRouter.self) private var router
-    @State private var title: String
-    @State private var notes: String
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var text: ItemTextDraft
     @State private var picker: InlinePicker?
 
     private let calendar = Calendar.autoupdatingCurrent
@@ -25,26 +27,25 @@ struct ItemEditor: View {
         self.item = item
         self.categories = categories
         self.close = close
-        _title = State(initialValue: item.title)
-        _notes = State(initialValue: item.body)
+        _text = State(initialValue: ItemTextDraft(title: item.title, notes: item.body))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            TextField("Title", text: $title)
+            TextField("Title", text: $text.title)
                 .font(.body.weight(.medium))
-                .layoutDirection(of: title)
+                .layoutDirection(of: text.title)
                 .submitLabel(.done)
                 .onSubmit {
-                    saveText()
+                    finish()
                     close()
                 }
                 .accessibilityIdentifier("titleField")
-            TextField("Notes", text: $notes, axis: .vertical)
+            TextField("Notes", text: $text.notes, axis: .vertical)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(1...6)
-                .layoutDirection(of: notes)
+                .layoutDirection(of: text.notes)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     dateChip
@@ -68,7 +69,11 @@ struct ItemEditor: View {
                 EmptyView()
             }
         }
-        .onDisappear(perform: saveText)
+        .onDisappear(perform: finish)
+        .onChange(of: scenePhase) { _, phase in
+            // The app may be ended in the background: keep what was typed.
+            if phase != .active { saveText() }
+        }
     }
 
     // MARK: Chips
@@ -157,17 +162,17 @@ struct ItemEditor: View {
         withAnimation(.snappy) { picker = picker == inline ? nil : inline }
     }
 
+    /// Return, or the editor going away. An empty title is never saved
+    /// (spec §13), so the field shows the last saved one again.
+    private func finish() {
+        saveText()
+        text.restoreEmptyTitle()
+    }
+
     private func saveText() {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != item.title || notes != item.body else { return }
-        guard !trimmed.isEmpty else {
-            title = item.title // an empty title isn't allowed (spec §13); put the old one back
-            return
-        }
-        update {
-            $0.title = trimmed
-            $0.body = notes
-        }
+        let changes = text.changes
+        guard !changes.isEmpty else { return }
+        write(changes) { _ in }
     }
 
     private func setDue(_ due: DueDate?) {
@@ -175,17 +180,22 @@ struct ItemEditor: View {
         update { $0.due = due }
     }
 
-    /// Every write also carries the text typed so far: a date or kind change
-    /// can move the row to another section, which rebuilds this editor from
-    /// the store — unsaved text would otherwise come back stale.
+    /// A chip write also carries the text the user changed: a date or kind
+    /// change can move the row to another section, which rebuilds this
+    /// editor from the store — unsaved text would otherwise come back stale.
     private func update(_ edit: (inout ItemEdit) -> Void) {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        write(text.changes, edit)
+    }
+
+    private func write(_ changes: ItemTextDraft.Changes, _ edit: (inout ItemEdit) -> Void) {
+        // Deleted (swiped away, or on another device): nothing to save into.
+        guard store.item(item.id) != nil else { return }
         router.perform {
             try store.updateItem(item.id) {
-                if !trimmed.isEmpty { $0.title = trimmed }
-                $0.body = notes
+                changes.apply(to: &$0)
                 edit(&$0)
             }
+            text.didSave(changes)
         }
     }
 }
