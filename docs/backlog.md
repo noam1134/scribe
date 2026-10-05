@@ -98,7 +98,7 @@ From the Phase 4 review.
 - Siri replies are English with the user's region formats (dates); revisit at localization.
 - No undo for a widget tick.
 - Check the widgets in tinted and clear home-screen modes.
-- Per-category widget and Control are gone (2026-10-06): on the iPhone the system handed the intent-configured widget and Control no intent (widget: CHSErrorDomain 1103 "Intent configuration is required but was not provided"; Control: `ControlError.intentConfigurationNotFound`), so the widget stayed a placeholder and the Control did nothing. Both are static now. The simulator did pass an intent. Bring the category choice back once we know why the device drops it (try a Release/TestFlight build first).
+- Per-category widget and Control are gone (2026-10-06): on the iPhone (iOS 27.0) the system handed the intent-configured widget and Control no intent (widget: CHSErrorDomain 1103; Control: `intentConfigurationNotFound`), so both are static now. Root cause was on the device: `linkd` failed its install audit of Scribe with `GRDB.DatabaseError Code=8` (read-only database), so none of Scribe's App Intents were indexed and every intent tap failed with "There is no metadata for OpenQuickAddIntent". Once a restart lets `linkd` index Scribe, bring the category choice back.
 
 ## Phase 5 follow-ups
 
