@@ -26,8 +26,9 @@ Phase 2's constraints apply (Swift 6, iOS/macOS 26, ScribeCore imports only Foun
 | `Core/Sources/ScribeCore/Notifications/NotificationPlanner.swift` | Items → due alerts + morning summaries, nearest-first, capped at 60 | 3 |
 | `Core/Sources/ScribeCore/Notifications/NotificationDiff.swift` | Pending vs planned → ids to remove, requests to add | 4 |
 | `Core/Sources/ScribeCore/Notifications/NotificationAction.swift` | Done / +1 hour / Tomorrow: identifiers and how each changes the item | 5 |
-| `App/Shared/NotificationCoordinator.swift` | Delegate, scheduling, permission, settings, triggers for rescheduling | 6 |
-| `App/Shared/NotificationRequests.swift` | `PlannedNotification` → `UNNotificationRequest`; the three `UNNotificationCategory`s | 6 |
+| `Core/Sources/ScribeCore/Notifications/NotificationScheduler.swift` | (review fix) Passes, permission, settings, actions, store opening — behind `NotificationCenterClient`, unit-tested with a fake center | 6 |
+| `App/Shared/NotificationCoordinator.swift` | Delegate, loader hand-off, activation/day/time-zone hooks, log; Phase 6's API | 6 |
+| `App/Shared/SystemNotificationCenter.swift` | `UNUserNotificationCenter` as a `NotificationCenterClient`; `PlannedNotification` → `UNNotificationRequest`; the three categories | 6 |
 | `App/ScribeApp.swift` | `init()` installs the coordinator before launch finishes | 6 |
 | `UITests/NotificationUITests.swift` | Due-time alert appears and tapping it opens the item (opt-in flag) | 7 |
 | `README.md`, `docs/backlog.md` | Status, device checklist pointer, backlog | 8 |
@@ -115,12 +116,16 @@ README status line, backlog (remove the Phase 5 item, add follow-ups), report.
 3. **Timed memos alert too** (with +1 hour / Tomorrow; Done is task-only).
 4. **Floating triggers:** calendar triggers without a time zone, so a 09:00 item alerts at 09:00 local time in Thailand or Bulgaria too (spec §5.2). Components come from the device calendar, so non-Gregorian device calendars still fire on the right day. A time skipped by a DST jump fires at the shifted time Foundation resolves (02:30 → 03:30).
 5. **Tomorrow:** the day after the later of the item's due day and today (spec: "dueDay +1"; the "today" floor keeps the label honest when an old alert is acted on late). The time is kept.
-6. **+1 hour:** now + 60 minutes, rounded up to the next multiple of 5 minutes (any seconds round up); may cross midnight into the next day.
-7. **Identifiers:** `item.<uuid>` (one alert per item, so a moved time replaces the old request) and `summary.<yyyy-MM-dd>`.
+6. **+1 hour:** now + 60 minutes, seconds dropped, rounded up to the next multiple of 5 minutes (14:00:20 → 15:00, 14:03 → 15:05); may cross midnight into the next day.
+7. **Identifiers:** `item.<uuid>` (one alert per item, so a moved time replaces the old request) and `summary.<yyyy-MM-dd>`, public as `PlannedNotification.identifier(forItem:)` / `identifier(forSummaryOn:)` for other processes.
 8. **Permission moment:** the first time there is something to notify while the app is in front — in practice right after adding the first dated or timed item. On macOS (off by default) the prompt comes when Phase 6 turns the switch on.
 9. **Actions run in the background** (no `.foreground`, no unlock required — like Reminders). Tapping the summary opens Upcoming; tapping an alert opens the item.
 10. **Alerts show while the app is open** (banner + sound).
 11. **Delivered alerts** of items that became done or were deleted are removed from Notification Center on the next reschedule.
-12. **Settings storage:** `UserDefaults.standard` (per device, never synced; only the app schedules, so not the App Group).
+12. **Settings storage:** the App Group's defaults (`NotificationSettings.appGroupDefaults`), so the widget and intents can read the master switch. Still per device: App Group defaults aren't synced.
 13. **Store query:** `ItemFilter.all` (shared with Phase 4) rather than a planner-specific query; the planner filters. Reads already load every item for the other filters, so this costs the same.
 14. **Copy:** English, like `DueLabels` (localization later). Due alert body "14:00 · Thailand" + first line of notes; summary "Today: 3" / "Book flights, Pay arnona, Call Dan, …" / "Overdue: 2".
+
+## Review fixes (2026-10-05)
+
+The scheduling logic moved from the app into Core (`NotificationScheduler` behind `NotificationCenterClient`), so it is unit-tested with a fake center: `rescheduleNow()` opens the store itself in a background launch; the permission prompt runs in its own task and never blocks a pass; a dropped action is reported. Also: public alert identifiers, App Group settings, a clamped summary minute, "+1 hour" drops seconds, the Mac settings URL opens Scribe's entry, and `NotificationUITests` is opt-in (`TEST_RUNNER_SCRIBE_RUN_NOTIFICATION_UI_TESTS=1`).
