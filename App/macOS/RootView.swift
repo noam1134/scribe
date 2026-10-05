@@ -11,6 +11,7 @@ struct RootView: View {
     @FocusState private var focus: MacRouter.Focus?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.openWindow) private var openWindow
     @Environment(StoreLoader.self) private var loader
 
     init(store: SwiftDataItemStore) {
@@ -55,10 +56,12 @@ struct RootView: View {
             router.focusRequest = nil
         }
         .onChange(of: undoManager, initial: true) { _, manager in router.undoManager = manager }
+        // Links from widgets, the menu bar, notification taps and intents.
         .onChange(of: loader.pendingLink, initial: true) { _, link in
             guard let link else { return }
             loader.pendingLink = nil
             router.open(link)
+            MacWindows.showMain(openWindow)
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.refresh() }

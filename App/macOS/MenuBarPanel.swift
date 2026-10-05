@@ -7,10 +7,30 @@ struct MacMenuBarScene: Scene {
     let loader: StoreLoader
 
     var body: some Scene {
-        MenuBarExtra("Scribe", systemImage: "checklist") {
+        MenuBarExtra {
             MenuBarPanel(loader: loader)
+        } label: {
+            MenuBarLabel(loader: loader)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+/// The menu bar icon. It is always there, so it also opens a main window
+/// for a link that arrives while every window is closed — a notification
+/// tap, an App Intent — and the window's root takes the link from there.
+private struct MenuBarLabel: View {
+    let loader: StoreLoader
+
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Image(systemName: "checklist")
+            .accessibilityLabel("Scribe")
+            .onChange(of: loader.pendingLink) { _, link in
+                guard link != nil, !MacWindows.hasMainWindow else { return }
+                openWindow(id: MacWindows.mainID)
+            }
     }
 }
 
@@ -227,18 +247,30 @@ enum MacWindows {
     /// The id of the main `WindowGroup` in `ScribeApp`.
     static let mainID = "main"
 
+    @MainActor
+    private static var mainWindow: NSWindow? {
+        NSApp.windows.first { window in
+            window.identifier?.rawValue.hasPrefix(mainID) == true && (window.isVisible || window.isMiniaturized)
+        }
+    }
+
+    @MainActor
+    static var hasMainWindow: Bool { mainWindow != nil }
+
     /// Brings the main window forward, or opens one if they were all closed.
     @MainActor
     static func showMain(_ openWindow: OpenWindowAction) {
         NSApp.activate()
-        let main = NSApp.windows.first { window in
-            window.identifier?.rawValue.hasPrefix(mainID) == true && (window.isVisible || window.isMiniaturized)
-        }
-        if let main {
-            if main.isMiniaturized { main.deminiaturize(nil) }
-            main.makeKeyAndOrderFront(nil)
-        } else {
-            openWindow(id: mainID)
-        }
+        if !bringMainForward() { openWindow(id: mainID) }
+    }
+
+    /// Brings an open (or minimized) main window forward; false if none.
+    @MainActor
+    @discardableResult
+    static func bringMainForward() -> Bool {
+        guard let main = mainWindow else { return false }
+        if main.isMiniaturized { main.deminiaturize(nil) }
+        main.makeKeyAndOrderFront(nil)
+        return true
     }
 }
