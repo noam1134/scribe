@@ -97,12 +97,12 @@ A missing item is ignored (deleted on another device). Done on a memo is a no-op
 - Delivered alerts of items that are now done or deleted are removed.
 - `-uiTesting` disables the coordinator unless `-enableNotifications` is also passed (keeps the permission alert out of the smoke tests).
 - A `notice` log line after each reschedule (counts, and ids in Debug) — the simulator check reads it with `log show`.
-- Phase 6 API: `settings` (bindable), `permission`, `requestPermission()`, `systemSettingsURL`.
+- Phase 6 API: `settings` (bindable), `permission`, `requestPermission()`, `systemSettingsURL`. `rescheduleNow()` for a background task that must finish before suspension.
 
 ### Task 7: Simulator verification
 
-- UI test (opt-in flag, handles the permission alert): add an item due in two minutes, wait for the banner, tap it, the item opens.
-- Manual on "Scribe P5": permission prompt, log shows the pending ids, banner fires, actions from the expanded banner.
+- `NotificationUITests.testAlertsAndMorningSummary` (`-uiTesting -enableNotifications`, answers the permission alert): two items due 2 and 3 minutes ahead and a morning summary moved to 5 minutes after launch (launch-argument override of `notifications.morningSummaryMinute`). With the app in the background, Done on the first banner completes the task; tapping the second banner opens the item; the summary reads "Today: 1" without the done task and opens Upcoming. About 4.5 minutes.
+- The `notice` log (`log stream --predicate 'subsystem == "com.noamchuri.scribe"'`) shows each pass: planned count, added/removed, permission, pending ids (Debug).
 
 ### Task 8: Docs and final run
 

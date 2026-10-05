@@ -159,7 +159,10 @@ final class NotificationCoordinator: NSObject {
         latest = task
     }
 
-    private func rescheduleNow() async {
+    /// Re-plans now and returns when the pending requests are up to date —
+    /// for work that must finish before the app is suspended (a notification
+    /// button, a background refresh task).
+    func rescheduleNow() async {
         setNeedsReschedule(after: .zero)
         await latest?.value
     }
