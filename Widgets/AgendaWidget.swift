@@ -6,10 +6,8 @@ import WidgetKit
 /// The agenda widget (spec §10): what's coming up, from every category or
 /// one, on the iPhone home and lock screens and the Mac desktop.
 struct AgendaWidget: Widget {
-    static let kind = "Agenda"
-
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: AgendaWidgetIntent.self, provider: AgendaProvider()) { entry in
+        AppIntentConfiguration(kind: WidgetKinds.agenda, intent: AgendaWidgetIntent.self, provider: AgendaProvider()) { entry in
             AgendaWidgetView(entry: entry.entry)
         }
         .configurationDisplayName("Upcoming")
@@ -30,6 +28,8 @@ struct AgendaWidgetIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Upcoming"
     static let description: IntentDescription? = IntentDescription("What’s coming up, from every category or just one.")
 
+    /// A deleted category arrives as `CategoryEntity.deleted`, and the
+    /// widget says so (spec §10.1 scope; no silent switch to all).
     @Parameter(title: "Category", description: "Leave empty to show every category.")
     var category: CategoryEntity?
 
@@ -66,7 +66,7 @@ struct AgendaProvider: AppIntentTimelineProvider {
         let builder = WidgetEntryBuilder()
         guard let store = try? SharedStore.open() else { return builder.unavailable(now: now) }
         return builder.timeline(
-            items: store.items(.all),
+            items: store.datedOpenItems(),
             categories: store.categories,
             categoryID: categoryID,
             now: now,

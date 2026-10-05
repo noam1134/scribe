@@ -26,7 +26,7 @@ struct OpenQuickAddIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         log.info("OpenQuickAddIntent runs in \(ProcessInfo.processInfo.processName, privacy: .public)")
-        IntentLinkInbox.shared.link = .add(categoryID: category?.id)
+        IntentLinkInbox.shared.link = .add(categoryID: category?.liveID)
         return .result()
     }
 }

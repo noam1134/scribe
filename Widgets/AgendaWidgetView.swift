@@ -56,7 +56,7 @@ private struct ListAgendaView: View {
                 EmptyAgendaText()
             } else {
                 let page = agenda.fitting(lines: lines)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(page.sections) { section in
                         SectionTitle(section: section)
                         ForEach(section.rows) { AgendaRow(row: $0, linksToItem: true) }
@@ -91,8 +91,9 @@ private struct SmallAgendaView: View {
                         .foregroundStyle(.red)
                 }
             }
-            let first = agenda.firstRows(3)
-            ForEach(first.rows) { AgendaRow(row: $0, linksToItem: false) }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(agenda.firstRows(3).rows) { AgendaRow(row: $0, linksToItem: false) }
+            }
             if agenda.isEmpty {
                 EmptyAgendaText()
             }
@@ -188,9 +189,15 @@ private struct AgendaRow: View {
 
     @Environment(\.widgetRenderingMode) private var renderingMode
 
+    /// The checkbox's tap area, wider and taller than its glyph so a tick
+    /// doesn't land on the row's link instead.
+    private static let markerSize = CGSize(width: 26, height: 22)
+
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             marker
+                .frame(width: Self.markerSize.width, height: Self.markerSize.height, alignment: .leading)
+                .contentShape(.rect)
             if linksToItem {
                 Link(destination: DeepLink.item(row.id).url) { label }
             } else {
@@ -221,9 +228,11 @@ private struct AgendaRow: View {
                 Image(systemName: "circle")
                     .foregroundStyle(checkboxColor)
                     .widgetAccentable()
+                    .frame(width: Self.markerSize.width, height: Self.markerSize.height, alignment: .leading)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Mark done")
+            .accessibilityLabel("Complete \(row.title)")
         case .memo:
             Image(systemName: "note.text")
                 .foregroundStyle(.tertiary)

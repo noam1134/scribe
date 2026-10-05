@@ -1,7 +1,6 @@
 import AppIntents
 import Foundation
 import ScribeCore
-import WidgetKit
 import os
 
 private let log = Logger(subsystem: "com.noamchuri.scribe", category: "intents")
@@ -26,16 +25,16 @@ struct CompleteTaskIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         log.info("CompleteTaskIntent runs in \(ProcessInfo.processInfo.processName, privacy: .public)")
-        defer { WidgetCenter.shared.reloadAllTimelines() }
         guard let id = UUID(uuidString: itemID) else { return .result() }
         let store = try SharedStore.openForIntent()
         do {
             try store.setDone(id, true)
         } catch StoreError.itemNotFound {
-            // Deleted on another device; the reload drops the row.
+            // Deleted on another device; the reload below drops the row.
         } catch let error as StoreError {
             throw IntentError.store(error)
         }
+        await StoreChanged.notify()
         return .result()
     }
 }

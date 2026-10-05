@@ -5,12 +5,12 @@ import WidgetKit
 /// "Add to Scribe" for Control Center, the Lock Screen and the Action Button
 /// (spec §8): opens the composer, in a category if one is configured.
 struct AddToScribeControl: ControlWidget {
-    static let kind = "com.noamchuri.scribe.add"
-
     var body: some ControlWidgetConfiguration {
-        AppIntentControlConfiguration(kind: Self.kind, intent: AddControlConfiguration.self) { configuration in
-            ControlWidgetButton(action: OpenQuickAddIntent(category: configuration.category)) {
-                Label(configuration.category.map { "Add to \($0.name)" } ?? "Add to Scribe", systemImage: "plus.circle")
+        AppIntentControlConfiguration(kind: WidgetKinds.addControl, intent: AddControlConfiguration.self) { configuration in
+            // A deleted category falls back to plain "Add to Scribe".
+            let category = configuration.category.flatMap { $0.isDeleted ? nil : $0 }
+            ControlWidgetButton(action: OpenQuickAddIntent(category: category)) {
+                Label(category.map { "Add to \($0.name)" } ?? "Add to Scribe", systemImage: "plus.circle")
             }
         }
         .displayName("Add to Scribe")

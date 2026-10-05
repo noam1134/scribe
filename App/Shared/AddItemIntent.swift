@@ -1,7 +1,6 @@
 import AppIntents
 import Foundation
 import ScribeCore
-import WidgetKit
 import os
 
 private let log = Logger(subsystem: "com.noamchuri.scribe", category: "intents")
@@ -37,7 +36,7 @@ struct AddItemIntent: AppIntent {
         let calendar = Calendar.autoupdatingCurrent
 
         var draft: ItemDraft
-        switch IntentAdd.resolve(text, categoryID: category?.id, categories: categories, now: now, calendar: calendar) {
+        switch IntentAdd.resolve(text, categoryID: category?.liveID, categories: categories, now: now, calendar: calendar) {
         case .ready(let ready):
             draft = ready
         case .needsCategory(let partial):
@@ -58,7 +57,7 @@ struct AddItemIntent: AppIntent {
         } catch let error as StoreError {
             throw IntentError.store(error)
         }
-        WidgetCenter.shared.reloadAllTimelines()
+        await StoreChanged.notify()
 
         let name = categories.first { $0.id == draft.categoryID }?.name ?? ""
         let reply = IntentAdd.reply(title: draft.title, categoryName: name, due: draft.due, now: now, calendar: calendar, locale: .autoupdatingCurrent)

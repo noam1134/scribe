@@ -20,19 +20,11 @@ final class StoreLoader {
     /// opening. The iPhone `RootView` takes it once it appears.
     var pendingLink: DeepLink?
 
-    @ObservationIgnored private var refresher: SyncRefresher?
-    @ObservationIgnored private var widgetRefresher: WidgetRefresher?
-
-    /// UI tests launch with `-uiTesting`: a fresh in-memory store, no iCloud.
-    static var isUITesting: Bool { CommandLine.arguments.contains("-uiTesting") }
-
     func load() {
         do {
-            // One store per process, shared with App Intents running in the app.
-            let store = try SharedStore.open()
-            refresher = SyncRefresher(store: store)
-            widgetRefresher = WidgetRefresher()
-            state = .ready(store)
+            // One store per process, shared with App Intents running in the
+            // app; opening it starts the sync and widget services (AppProcess).
+            state = .ready(try SharedStore.open())
         } catch {
             state = .failed(String(describing: error))
         }
