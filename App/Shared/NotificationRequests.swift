@@ -33,7 +33,8 @@ extension NotificationCategory {
 }
 
 extension NotificationAction {
-    /// Runs in the background — no app launch, no unlock — like Reminders.
+    /// Handled in the background: Scribe doesn't come to the front and the
+    /// phone needn't be unlocked, as in Reminders.
     var button: UNNotificationAction {
         UNNotificationAction(identifier: rawValue, title: title, options: [], icon: UNNotificationActionIcon(systemImageName: symbolName))
     }

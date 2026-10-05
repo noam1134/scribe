@@ -6,6 +6,8 @@ A native notes app, written in Swift.
 
 iPhone app usable (Phase 2): Upcoming, categories, inline editing, quick-add with English + Hebrew parsing, search, iCloud sync. Mac app, widgets, notifications and settings come next.
 
+Notifications (Phase 5): an alert at each timed item's due time with Done / +1 hour / Tomorrow, and a morning summary of the day; on by default on iPhone, off on Mac.
+
 ## Development
 
 The Xcode project is generated with [XcodeGen](https://github.com/yonaskolb/XcodeGen) and is not checked in.
@@ -23,6 +25,8 @@ open Scribe.xcodeproj
 xcodebuild -project Scribe.xcodeproj -scheme Scribe \
   -destination "platform=iOS Simulator,name=iPhone 17 Pro" test   # UI smoke tests
 ```
+
+`NotificationUITests` waits for real notifications (about five minutes, and it fails in the minutes before midnight); add `-skip-testing:ScribeUITests/NotificationUITests` for a quick run.
 
 ### Signing and devices
 

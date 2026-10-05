@@ -77,9 +77,16 @@ Deferred in the Phase 2 (iPhone app) reviews.
 - Verify widget/intent writes post `NSPersistentStoreRemoteChange`, so the open app refreshes (scene activation is the backstop).
 - Verify a cold-launch `scribe://item/<id>` pushes the category screen (only `scribe://add` was tried).
 
-## Phase 5–6
+## Phase 5 follow-ups
 
-- `ItemFilter` has no `.all`; `NotificationPlanner` needs timed items beyond the 7-day agenda.
+- **Device check** of notifications (permission prompt, a due-time alert, the morning summary, Done / +1 hour / Tomorrow from the lock screen with the app suspended and force-quit). Steps in the Phase 5 report.
+- **Stale alerts on iPhone.** Notifications are planned from the data the iPhone has; an item changed on the Mac re-plans only when the iPhone app imports it (spec §18 — activation, or Phase 4's background refresh calling `store.refresh()`).
+- Notification text is English ("Today: 3", "Overdue: 2", "+1 Hour") — decide at localization.
+- An item moved by "+1 hour" inside the hour repeated by the autumn DST change lands on the first, already-passed copy of that time and gets no new alert.
+
+## Phase 6 (Settings)
+
+- Bind to `NotificationCoordinator.shared`: `settings` (`isEnabled`, `morningSummaryEnabled`, `morningSummaryMinute`), `permission` (`.denied` → explain and link `NotificationCoordinator.systemSettingsURL`), `requestPermission()`. Turning notifications on (the Mac's default is off) should call `requestPermission()`, so the prompt comes from the switch even before anything is scheduled.
 - "Last synced" should use the CloudKit event's `endDate`.
 
 ## Later (after v1)
