@@ -6,6 +6,10 @@ import ScribeCore
 /// quick-add hotkey (spec §8), and a refresh whenever the app becomes active.
 @MainActor
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
+    /// Set by `ScribeApp.init`, which creates the one loader before launch
+    /// finishes.
+    static var launchLoader: StoreLoader?
+
     private weak var loader: StoreLoader?
     private var syncLog: SyncEventLog?
     private(set) var quickAddPanel: QuickAddPanelController?
@@ -16,6 +20,9 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // At launch, not when a window first appears: the hotkey must work
+        // even if no window is open.
+        if let loader = Self.launchLoader { start(loader: loader) }
         guard !StoreLoader.isUITesting else { return }
         syncLog = SyncEventLog()
         // Phase 0 never saw a CloudKit push reach the Mac app, even with this
@@ -24,9 +31,7 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.registerForRemoteNotifications()
     }
 
-    /// Called by the window's root once the store loader exists. Safe to
-    /// call again (each new window does).
-    func start(loader: StoreLoader) {
+    private func start(loader: StoreLoader) {
         guard self.loader == nil else { return }
         self.loader = loader
         let panel = QuickAddPanelController(loader: loader)

@@ -1,0 +1,93 @@
+import Foundation
+import Testing
+@testable import ScribeCore
+
+struct NotificationSettingsTests {
+    /// A throwaway defaults domain per test.
+    func freshDefaults() -> UserDefaults {
+        let name = "scribe-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
+    @Test func platformDefaultsFollowTheSpec() {
+        // Spec §11: on for iOS, off for macOS (avoids double alerts); summary at 09:00.
+        #expect(NotificationSettings.iOSDefault == NotificationSettings(isEnabled: true, morningSummaryEnabled: true, morningSummaryMinute: 540))
+        #expect(NotificationSettings.macOSDefault == NotificationSettings(isEnabled: false, morningSummaryEnabled: true, morningSummaryMinute: 540))
+        #if os(macOS)
+        #expect(NotificationSettings.platformDefault == .macOSDefault)
+        #else
+        #expect(NotificationSettings.platformDefault == .iOSDefault)
+        #endif
+    }
+
+    @Test func missingKeysFallBack() {
+        let defaults = freshDefaults()
+        #expect(NotificationSettings(from: defaults, fallback: .iOSDefault) == .iOSDefault)
+        #expect(NotificationSettings(from: defaults, fallback: .macOSDefault) == .macOSDefault)
+    }
+
+    @Test func roundTrip() {
+        let defaults = freshDefaults()
+        let custom = NotificationSettings(isEnabled: false, morningSummaryEnabled: false, morningSummaryMinute: 7 * 60 + 30)
+        custom.save(to: defaults)
+        #expect(NotificationSettings(from: defaults, fallback: .iOSDefault) == custom)
+    }
+
+    @Test func eachKeyFallsBackOnItsOwn() {
+        let defaults = freshDefaults()
+        defaults.set(false, forKey: NotificationSettings.Keys.isEnabled)
+        let loaded = NotificationSettings(from: defaults, fallback: .iOSDefault)
+        #expect(loaded == NotificationSettings(isEnabled: false, morningSummaryEnabled: true, morningSummaryMinute: 540))
+    }
+
+    @Test(arguments: [-1, 1440, 99_999])
+    func outOfRangeSummaryMinuteFallsBack(minute: Int) {
+        let defaults = freshDefaults()
+        defaults.set(minute, forKey: NotificationSettings.Keys.morningSummaryMinute)
+        #expect(NotificationSettings(from: defaults, fallback: .iOSDefault).morningSummaryMinute == 540)
+    }
+
+    /// Launch arguments such as `-notifications.morningSummaryMinute 450`
+    /// reach `UserDefaults` as strings.
+    @Test func stringValuesFromLaunchArgumentsAreRead() {
+        let defaults = freshDefaults()
+        defaults.set("450", forKey: NotificationSettings.Keys.morningSummaryMinute)
+        defaults.set("NO", forKey: NotificationSettings.Keys.isEnabled)
+        let loaded = NotificationSettings(from: defaults, fallback: .iOSDefault)
+        #expect(loaded == NotificationSettings(isEnabled: false, morningSummaryEnabled: true, morningSummaryMinute: 450))
+    }
+
+    @Test func unreadableValuesFallBack() {
+        let defaults = freshDefaults()
+        defaults.set("soon", forKey: NotificationSettings.Keys.morningSummaryMinute)
+        defaults.set("maybe", forKey: NotificationSettings.Keys.morningSummaryEnabled)
+        defaults.set(Date(), forKey: NotificationSettings.Keys.isEnabled)
+        #expect(NotificationSettings(from: defaults, fallback: .iOSDefault) == .iOSDefault)
+    }
+
+    @Test func summaryMinuteStaysInsideTheDay() {
+        var settings = NotificationSettings.iOSDefault
+        settings.morningSummaryMinute = -5
+        #expect(settings.morningSummaryMinute == 0)
+        settings.morningSummaryMinute = 2000
+        #expect(settings.morningSummaryMinute == 1439)
+        settings.morningSummaryMinute = 450
+        #expect(settings.morningSummaryMinute == 450)
+        #expect(NotificationSettings(isEnabled: true, morningSummaryEnabled: true, morningSummaryMinute: 1440).morningSummaryMinute == 1439)
+        #expect(NotificationSettings(isEnabled: true, morningSummaryEnabled: true, morningSummaryMinute: -1).morningSummaryMinute == 0)
+    }
+
+    /// The widget and intents read the master switch, so the settings live
+    /// in the App Group's defaults (still per device: they aren't synced).
+    @Test func storedInTheAppGroup() {
+        #expect(NotificationSettings.appGroupSuiteName == ScribeIDs.appGroup)
+    }
+
+    @Test func midnightIsAValidSummaryTime() {
+        let defaults = freshDefaults()
+        defaults.set(0, forKey: NotificationSettings.Keys.morningSummaryMinute)
+        #expect(NotificationSettings(from: defaults, fallback: .iOSDefault).morningSummaryMinute == 0)
+    }
+}

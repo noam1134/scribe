@@ -3,10 +3,22 @@ import SwiftUI
 
 @main
 struct ScribeApp: App {
-    @State private var loader = StoreLoader()
+    @State private var loader: StoreLoader
     #if os(macOS)
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var macDelegate
     #endif
+
+    init() {
+        let loader = StoreLoader()
+        _loader = State(initialValue: loader)
+        // Before launch finishes, so a notification tap or button that
+        // launched the app reaches it.
+        NotificationCoordinator.shared.install(loader: loader)
+        #if os(macOS)
+        // For the hotkey, installed when launch finishes.
+        MacAppDelegate.launchLoader = loader
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup(id: "main") {
@@ -22,9 +34,6 @@ struct ScribeApp: App {
             }
             .task {
                 if case .loading = loader.state { loader.load() }
-                #if os(macOS)
-                macDelegate.start(loader: loader)
-                #endif
             }
             .onOpenURL { url in
                 // On the always-present root, so a link that launches the app
