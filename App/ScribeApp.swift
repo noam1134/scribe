@@ -3,7 +3,15 @@ import SwiftUI
 
 @main
 struct ScribeApp: App {
-    @State private var loader = StoreLoader()
+    @State private var loader: StoreLoader
+
+    init() {
+        let loader = StoreLoader()
+        _loader = State(initialValue: loader)
+        // Before launch finishes, so a notification tap or button that
+        // launched the app reaches it.
+        NotificationCoordinator.shared.install(loader: loader)
+    }
 
     var body: some Scene {
         WindowGroup {
