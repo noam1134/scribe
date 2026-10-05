@@ -9,6 +9,7 @@ struct RootView: View {
     @State private var router = AppRouter()
     @State private var undo = UndoCenter()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(StoreLoader.self) private var loader
 
     var body: some View {
         @Bindable var router = router
@@ -43,8 +44,10 @@ struct RootView: View {
         }
         .environment(router)
         .environment(undo)
-        .onOpenURL { url in
-            if let link = DeepLink(url: url) { router.open(link, store: store) }
+        .onChange(of: loader.pendingLink, initial: true) { _, link in
+            guard let link else { return }
+            loader.pendingLink = nil
+            router.open(link, store: store)
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.refresh() }

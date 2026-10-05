@@ -20,6 +20,12 @@ struct ScribeApp: App {
             .task {
                 if case .loading = loader.state { loader.load() }
             }
+            .onOpenURL { url in
+                // On the always-present root, so a link that launches the app
+                // isn't lost while the store opens.
+                if let link = DeepLink(url: url) { loader.pendingLink = link }
+            }
+            .environment(loader)
         }
     }
 }

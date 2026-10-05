@@ -14,6 +14,12 @@ final class StoreLoader {
     }
 
     private(set) var state: State = .loading
+
+    /// A `scribe://` link that arrived before or while the UI was getting
+    /// ready — a link can cold-launch the app while the store is still
+    /// opening. The iPhone `RootView` takes it once it appears.
+    var pendingLink: DeepLink?
+
     @ObservationIgnored private var refresher: SyncRefresher?
 
     /// UI tests launch with `-uiTesting`: a fresh in-memory store, no iCloud.
