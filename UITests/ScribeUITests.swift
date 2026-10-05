@@ -135,6 +135,19 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["section-Work"].waitForExistence(timeout: 5))
     }
 
+    /// Collapses Thailand, which sits below Work's rows: Work closes for
+    /// the tap and opens again.
+    private func collapseThailand() -> XCUIElement {
+        let work = app.buttons["section-Work"]
+        let thailand = app.buttons["section-Thailand"]
+        work.tap()
+        thailand.tap()
+        work.tap()
+        XCTAssertEqual(thailand.value as? String, "Collapsed")
+        XCTAssertEqual(work.value as? String, "Expanded")
+        return thailand
+    }
+
     func testSectionCollapsesAndExpands() {
         quickAdd("Water plants")
         let row = app.staticTexts["Water plants"]
@@ -151,6 +164,9 @@ final class ScribeUITests: XCTestCase {
     func testSectionPlusPreselectsItsCategory() {
         addCategory("Work")
         XCTAssertTrue(app.staticTexts["No items"].exists)
+        let header = app.buttons["section-Work"]
+        header.tap()
+        XCTAssertEqual(header.value as? String, "Collapsed")
         app.buttons["addTo-Work"].tap()
         let field = app.textFields["quickAddField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -159,15 +175,23 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Add"].isEnabled)
         app.buttons["Add"].tap()
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Draft the plan"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Draft the plan"].waitForExistence(timeout: 5), "adding through + opens the section")
+        XCTAssertEqual(header.value as? String, "Expanded")
         XCTAssertFalse(app.staticTexts["No items"].exists)
     }
 
     func testShowCompletedRevealsDoneItems() {
         quickAdd("Call Dan")
-        app.buttons["checkbox-Call Dan"].tap()
+        let checkbox = app.buttons["checkbox-Call Dan"]
+        checkbox.tap()
         let row = app.staticTexts["Call Dan"]
         XCTAssertTrue(row.waitForNonExistence(timeout: 5), "done items are hidden by default")
+        let undo = app.buttons["undoButton"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 3), "completing a hidden item offers Undo")
+        undo.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        checkbox.tap()
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5))
         app.buttons["More"].tap()
         app.buttons["Show Completed"].tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
@@ -194,7 +218,9 @@ final class ScribeUITests: XCTestCase {
     func testHeaderLongPressRenamesAndDeletes() {
         quickAdd("Water plants")
         app.buttons["section-errands"].press(forDuration: 1)
-        app.buttons["Rename"].tap()
+        let rename = app.buttons["Rename"]
+        XCTAssertTrue(rename.waitForExistence(timeout: 5))
+        rename.tap()
         let name = app.textFields["categoryNameField"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap()
@@ -203,10 +229,14 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(header.waitForExistence(timeout: 5))
 
         header.press(forDuration: 1)
-        app.buttons["Delete"].tap()
+        let delete = app.buttons["Delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
         XCTAssertTrue(app.buttons["section-Inbox"].waitForExistence(timeout: 5), "its items move to the Inbox")
         XCTAssertFalse(header.exists)
-        app.buttons["undoButton"].tap()
+        let undo = app.buttons["undoButton"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 3))
+        undo.tap()
         XCTAssertTrue(header.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["section-Inbox"].waitForNonExistence(timeout: 5))
     }
@@ -214,14 +244,13 @@ final class ScribeUITests: XCTestCase {
     /// Notifications and widgets open items with this link (spec §8, §20).
     func testItemLinkOpensTheItemInItsCollapsedSection() {
         relaunchWithDemoData()
-        let header = app.buttons["section-Thailand"]
-        header.tap()
-        XCTAssertEqual(header.value as? String, "Collapsed")
+        let header = collapseThailand() // its item is now a scroll away
         app.tabBars.buttons["Upcoming"].tap()
         app.open(URL(string: "scribe://item/5C1B0E00-0000-4000-8000-000000000001")!)
         let title = app.textFields["titleField"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertEqual(title.value as? String, "Passport number")
+        XCTAssertTrue(title.isHittable, "scrolled into view")
         XCTAssertTrue(app.tabBars.buttons["Lists"].isSelected)
         XCTAssertEqual(header.value as? String, "Expanded")
     }
@@ -233,10 +262,27 @@ final class ScribeUITests: XCTestCase {
         let title = app.textFields["titleField"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertEqual(title.value as? String, "Renew gym membership")
+        XCTAssertTrue(title.isHittable, "scrolled into view")
         title.tap()
         title.typeText("\n")
         XCTAssertTrue(title.waitForNonExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Renew gym membership"].exists)
+    }
+
+    /// The editor's category chip moves the row into a collapsed section,
+    /// which opens to show it.
+    func testMovingTheEditedItemOpensItsNewSection() {
+        relaunchWithDemoData()
+        let thailand = collapseThailand()
+        app.staticTexts["Send the quarterly report"].tap()
+        let chip = app.buttons["categoryChip"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        chip.tap()
+        let destination = app.buttons["\u{1F1F9}\u{1F1ED} Thailand"]
+        XCTAssertTrue(destination.waitForExistence(timeout: 5))
+        destination.tap()
+        XCTAssertEqual(thailand.value as? String, "Expanded")
+        XCTAssertTrue(app.textFields["titleField"].waitForExistence(timeout: 5), "the editor stays open")
     }
 
     // MARK: Keyboard and notes (spec §20)
@@ -251,12 +297,13 @@ final class ScribeUITests: XCTestCase {
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: nil)], timeout: 5) == .completed
     }
 
-    /// Just above the keyboard (when the simulator shows one), below a
-    /// short list's last row.
-    private func emptySpaceAboveTheKeyboard() -> XCUICoordinate {
+    /// Halfway between `element` and the keyboard (or the bottom of the
+    /// screen when the simulator shows none): list background on a short list.
+    private func emptySpace(below element: XCUIElement) -> XCUICoordinate {
         let keyboard = app.keyboards.firstMatch
-        let y = keyboard.exists ? keyboard.frame.minY - 50 : app.frame.height * 0.6
-        return app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: app.frame.width / 2, dy: y))
+        let bottom = keyboard.exists ? keyboard.frame.minY : app.frame.maxY
+        let y = (element.frame.maxY + bottom) / 2
+        return app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: app.frame.midX, dy: y))
     }
 
     func testTappingOutsideAFieldClosesTheKeyboard() {
@@ -280,10 +327,16 @@ final class ScribeUITests: XCTestCase {
         field.tap()
         XCTAssertTrue(waitForFocus(field))
         field.typeText("Pack bags #errands")
+        // The composer's own controls keep the caret, so Return still saves.
+        app.buttons["kindToggle"].tap()
+        XCTAssertTrue(hasFocus(field), "the kind toggle keeps the keyboard")
+        XCTAssertEqual(app.buttons["kindToggle"].label, "Memo")
+        app.buttons["kindToggle"].tap()
         app.buttons["newCategoryChip"].tap()
         XCTAssertTrue(app.buttons["Add"].isEnabled, "the chip should work on the first tap")
-        app.buttons["Add"].tap()
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(hasFocus(field), "a category chip keeps the keyboard")
+        field.typeText("\n")
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "Return saves")
 
         // In Lists, empty space closes the inline editor's keyboard and
         // leaves the editor open.
@@ -292,7 +345,7 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
         XCTAssertTrue(waitForFocus(title))
-        emptySpaceAboveTheKeyboard().tap()
+        emptySpace(below: app.buttons["kindChip"]).tap()
         XCTAssertTrue(waitForFocus(title, false))
         XCTAssertTrue(title.exists)
     }
@@ -313,5 +366,21 @@ final class ScribeUITests: XCTestCase {
         let saved = app.descendants(matching: .any)["notesField"].firstMatch
         XCTAssertTrue(saved.waitForExistence(timeout: 5))
         XCTAssertEqual(saved.value as? String, "Passport\nCharger")
+    }
+
+    /// The tap that closes the keyboard must not take Paste's tap away.
+    func testPasteIntoNotes() {
+        UIPasteboard.general.string = "Gate 4"
+        app.buttons["quickAddBar"].tap()
+        let notes = app.descendants(matching: .any)["quickAddNotes"].firstMatch
+        XCTAssertTrue(notes.waitForExistence(timeout: 5))
+        notes.tap()
+        XCTAssertTrue(waitForFocus(notes))
+        notes.press(forDuration: 1)
+        let paste = app.menuItems["Paste"]
+        XCTAssertTrue(paste.waitForExistence(timeout: 5))
+        paste.tap()
+        XCTAssertEqual(notes.value as? String, "Gate 4")
+        XCTAssertTrue(hasFocus(notes), "the field keeps the focus")
     }
 }

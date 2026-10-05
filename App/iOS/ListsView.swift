@@ -12,8 +12,6 @@ struct ListsView: View {
     @Environment(UndoCenter.self) private var undo
     /// The category showing its inline editor.
     @State private var editingCategoryID: UUID?
-    /// The category whose header was long-pressed.
-    @State private var actionsCategory: CategorySnapshot?
     @State private var isAdding = false
     @State private var newName = ""
     @State private var addError: String?
@@ -46,6 +44,7 @@ struct ListsView: View {
                 }
             }
             .environment(\.editMode, .constant(router.isEditingLists ? .active : .inactive))
+            .listSectionSpacing(.compact)
             .scrollDismissesKeyboard(.immediately)
             .overlay {
                 if sections.isEmpty && !isAdding {
@@ -61,22 +60,22 @@ struct ListsView: View {
             }
             .task(id: router.listsScrollTarget) {
                 guard let id = router.listsScrollTarget else { return }
-                // After the section it was in has opened and laid out.
-                guard (try? await Task.sleep(for: .milliseconds(150))) != nil else { return }
-                withAnimation(.snappy) { proxy.scrollTo(id, anchor: .center) }
+                // After its section has opened; again once the rows have
+                // settled, since a scroll during the insertion can fall short.
+                for delay in [200, 300] {
+                    guard (try? await Task.sleep(for: .milliseconds(delay))) != nil else { return }
+                    withAnimation(.snappy) { proxy.scrollTo(id, anchor: .center) }
+                }
                 router.listsScrollTarget = nil
             }
         }
         .navigationTitle("Lists")
         .toolbar { toolbar }
-        .confirmationDialog(
-            actionsCategory?.displayName ?? "",
-            isPresented: Binding(get: { actionsCategory != nil }, set: { if !$0 { actionsCategory = nil } }),
-            titleVisibility: .visible,
-            presenting: actionsCategory
-        ) { category in
-            Button("Rename") { editingCategoryID = category.id }
-            Button("Delete", role: .destructive) { delete(category) }
+        .onChange(of: editedSectionID(in: sections)) { _, id in
+            // The row being edited moved (its category chip): follow it.
+            if let id, router.lists.isCollapsed(id) {
+                withAnimation(.snappy) { router.lists.expand(id) }
+            }
         }
         .onChange(of: addFieldFocused) { _, focused in
             // Tapping away from an empty field puts it away.
@@ -102,8 +101,11 @@ struct ListsView: View {
                         .foregroundStyle(.tertiary)
                 }
                 ForEach(section.items) { item in
-                    ItemRow(store: store, item: item, categories: categories, showsCategory: false)
-                        .id(item.id)
+                    ItemRow(
+                        store: store, item: item, categories: categories, showsCategory: false,
+                        offersUndoOnComplete: !router.lists.showsCompleted
+                    )
+                    .id(item.id)
                 }
             }
         } header: {
@@ -111,10 +113,19 @@ struct ListsView: View {
                 section: section,
                 isCollapsed: isCollapsed,
                 toggle: { toggle(section) },
-                add: { router.compose(in: section.category?.id) },
-                showActions: section.category.map { category in { actionsCategory = category } }
+                add: {
+                    router.lists.expand(section.id)
+                    router.compose(in: section.category?.id)
+                },
+                rename: { editingCategoryID = section.category?.id },
+                delete: { section.category.map(delete) }
             )
         }
+    }
+
+    private func editedSectionID(in sections: [ListSection]) -> ListSectionID? {
+        guard let id = router.expandedItemID else { return nil }
+        return sections.first { $0.items.contains { $0.id == id } }?.id
     }
 
     private func toggle(_ section: ListSection) {
@@ -177,7 +188,7 @@ struct ListsView: View {
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
-            // Settings (Phase 6) goes here, before Edit.
+            SettingsButton()
             Button(router.isEditingLists ? "Done" : "Edit", action: toggleEditing)
                 .accessibilityIdentifier("editLists")
         }
@@ -237,24 +248,49 @@ struct ListsView: View {
 }
 
 /// A section's header: dot (or tray), name, open count and chevron — a tap
-/// collapses or expands — then **+** to add into it. A long press on a
-/// category asks what to do with it. (List headers can't show a context
-/// menu: SwiftUI only gives rows one.)
+/// collapses or expands — then **+** to add into it. Pressing and holding a
+/// category asks Rename or Delete, in a dialog pointing at the header. (A
+/// context menu can't open on a list header — SwiftUI gives only rows one —
+/// and a `Menu` label lost its tap on some headers.)
 private struct ListSectionHeader: View {
     let section: ListSection
     let isCollapsed: Bool
     let toggle: () -> Void
     let add: () -> Void
-    /// Rename / Delete for a category; nil for the Inbox.
-    let showActions: (() -> Void)?
+    let rename: () -> Void
+    let delete: () -> Void
+
+    @State private var asksForAction = false
 
     private var name: String { section.category?.name ?? "Inbox" }
 
     var body: some View {
         HStack(spacing: 4) {
-            toggleArea
-            // No Inbox in the composer (spec §19).
-            if section.category != nil {
+            label
+                .onTapGesture(perform: toggle)
+                .onLongPressGesture {
+                    if section.category != nil { asksForAction = true }
+                }
+                .sensoryFeedback(.impact, trigger: asksForAction) { _, asks in asks }
+                .confirmationDialog(section.category?.displayName ?? "", isPresented: $asksForAction, titleVisibility: .visible) {
+                    Button("Rename", action: rename)
+                    Button("Delete", role: .destructive, action: delete)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction(.default, toggle)
+                .accessibilityActions {
+                    if section.category != nil {
+                        Button("Rename", action: rename)
+                        Button("Delete", action: delete)
+                    }
+                }
+                .accessibilityIdentifier("section-\(name)")
+                .accessibilityValue(isCollapsed ? "Collapsed" : "Expanded")
+            if section.category == nil {
+                // Keeps the Inbox's count and chevron in line with the others.
+                Color.clear.frame(width: 44, height: 44)
+            } else {
                 Button("Add to \(name)", systemImage: "plus", action: add)
                     .labelStyle(.iconOnly)
                     .font(.body.weight(.semibold))
@@ -268,7 +304,7 @@ private struct ListSectionHeader: View {
         .textCase(nil)
     }
 
-    private var toggleArea: some View {
+    private var label: some View {
         HStack(spacing: 10) {
             marker
             // Color.primary: in a header `.primary` is the header's grey.
@@ -279,28 +315,16 @@ private struct ListSectionHeader: View {
             Spacer(minLength: 8)
             if section.openCount > 0 {
                 Text(section.openCount, format: .number)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
                     .monospacedDigit()
             }
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
                 .rotationEffect(.degrees(isCollapsed ? 0 : 90))
         }
         .frame(minHeight: 44)
         .contentShape(.rect)
-        .onTapGesture(perform: toggle)
-        .onLongPressGesture { showActions?() }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction(.default, toggle)
-        .accessibilityActions {
-            if let showActions {
-                Button("Rename or Delete", action: showActions)
-            }
-        }
-        .accessibilityIdentifier("section-\(name)")
-        .accessibilityValue(isCollapsed ? "Collapsed" : "Expanded")
     }
 
     @ViewBuilder private var marker: some View {
@@ -308,7 +332,7 @@ private struct ListSectionHeader: View {
             Circle().fill(category.color).frame(width: 10, height: 10)
         } else {
             Image(systemName: "tray")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
         }
     }
 }

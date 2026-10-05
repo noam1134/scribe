@@ -12,6 +12,9 @@ struct ItemRow: View {
     let categories: [CategorySnapshot]
     var showsDay = true
     var showsCategory = true
+    /// Completing hides the row here, so offer Undo (Upcoming; Lists
+    /// without Show Completed).
+    var offersUndoOnComplete = false
 
     @Environment(AppRouter.self) private var router
     @Environment(UndoCenter.self) private var undo
@@ -88,7 +91,11 @@ struct ItemRow: View {
     @ViewBuilder private var menu: some View {
         Menu("Move to", systemImage: "folder") {
             ForEach(categories) { category in
-                Button(category.displayName) { update { $0.categoryID = category.id } }
+                Button(category.displayName) {
+                    update { $0.categoryID = category.id }
+                    // Lists shows it where it went.
+                    router.lists.expand(.category(category.id))
+                }
             }
         }
         Button(item.kind == .task ? "Make Memo" : "Make Task",
@@ -111,7 +118,13 @@ struct ItemRow: View {
     }
 
     private func toggleDone() {
-        router.perform { try store.setDone(item.id, !item.isDone) }
+        let snapshot = item
+        router.perform {
+            try store.setDone(snapshot.id, !snapshot.isDone)
+            if offersUndoOnComplete && !snapshot.isDone {
+                undo.offer("Completed “\(snapshot.title)”") { try store.setDone(snapshot.id, false) }
+            }
+        }
     }
 
     private func update(_ edit: (inout ItemEdit) -> Void) {

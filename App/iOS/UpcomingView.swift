@@ -14,14 +14,14 @@ struct UpcomingView: View {
         List {
             if !agenda.overdue.isEmpty {
                 Section {
-                    ForEach(agenda.overdue) { ItemRow(store: store, item: $0, categories: categories) }
+                    ForEach(agenda.overdue) { ItemRow(store: store, item: $0, categories: categories, offersUndoOnComplete: true) }
                 } header: {
                     Text("Overdue").foregroundStyle(.red)
                 }
             }
             ForEach(agenda.days, id: \.day) { day in
                 Section(labels.dayTitle(day.day, today: today)) {
-                    ForEach(day.items) { ItemRow(store: store, item: $0, categories: categories, showsDay: false) }
+                    ForEach(day.items) { ItemRow(store: store, item: $0, categories: categories, showsDay: false, offersUndoOnComplete: true) }
                 }
             }
         }

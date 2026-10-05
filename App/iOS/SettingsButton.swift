@@ -36,29 +36,17 @@ struct SettingsSheet: View {
 
 #if DEBUG
 extension View {
-    /// UI tests reach Settings without the iPhone screens placing the button
-    /// (they do so at merge time): `-settingsButton` puts the real button
-    /// over the app, `-showSettings` opens Settings at launch (screenshots).
-    /// `-uiTesting` runs only.
-    func settingsTestEntry() -> some View {
-        modifier(SettingsTestEntry())
+    /// `-uiTesting -showSettings` opens Settings at launch, for screenshots.
+    func settingsAtLaunchForScreenshots() -> some View {
+        modifier(SettingsAtLaunch())
     }
 }
 
-private struct SettingsTestEntry: ViewModifier {
-    @State private var showsAtLaunch = SettingsDemo.showsSettingsAtLaunch
+private struct SettingsAtLaunch: ViewModifier {
+    @State private var isPresented = SettingsDemo.showsSettingsAtLaunch
 
     func body(content: Content) -> some View {
-        content
-            .overlay(alignment: .topLeading) {
-                if SettingsDemo.showsSettingsButton {
-                    SettingsButton()
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.glass)
-                        .padding(.leading, 16)
-                }
-            }
-            .sheet(isPresented: $showsAtLaunch) { SettingsSheet() }
+        content.sheet(isPresented: $isPresented) { SettingsSheet() }
     }
 }
 #endif

@@ -1,9 +1,7 @@
 import XCTest
 
-/// Settings on the iPhone (spec §16 Phase 6). The iPhone screens get their
-/// Settings button at merge time, so these launch with `-settingsButton`,
-/// which puts the real button over the app (Debug, `-uiTesting` only), and
-/// tap it as a user would. `-demoSync` / `-demoPermission` set the iCloud
+/// Settings on the iPhone (spec §16 Phase 6, §21): the gear in the Lists
+/// tab's toolbar opens it. `-demoSync` / `-demoPermission` set the iCloud
 /// and permission states (there is no iCloud in a UI-test run). The
 /// notification settings are pinned by launch arguments, so a switch
 /// flipped here never carries over to the next run.
@@ -18,7 +16,7 @@ final class SettingsUITests: XCTestCase {
     private func launch(_ extra: [String] = []) {
         app = XCUIApplication()
         app.launchArguments = [
-            "-uiTesting", "-settingsButton",
+            "-uiTesting",
             "-notifications.enabled", "YES",
             "-notifications.morningSummary", "YES",
             "-notifications.morningSummaryMinute", "540",
@@ -27,7 +25,10 @@ final class SettingsUITests: XCTestCase {
     }
 
     private func openSettings() {
-        let button = app.buttons["settingsButton"]
+        let lists = app.tabBars.buttons["Lists"]
+        XCTAssertTrue(lists.waitForExistence(timeout: 5))
+        lists.tap()
+        let button = app.navigationBars["Lists"].buttons["settingsButton"]
         XCTAssertTrue(button.waitForExistence(timeout: 5))
         button.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))

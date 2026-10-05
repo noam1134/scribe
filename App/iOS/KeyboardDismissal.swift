@@ -3,10 +3,18 @@ import UIKit
 
 extension View {
     /// A tap anywhere outside a text field closes the keyboard (spec §20).
-    /// The tap still does what it would have done — buttons and chips work
-    /// on the first tap — and a tap on another field just moves the focus.
+    /// The tap still does what it would have done — buttons work on the
+    /// first tap — and a tap on another field just moves the focus.
     func closesKeyboardOnTapOutside() -> some View {
         background(WindowTapHook())
+    }
+
+    /// Taps here leave the keyboard up: the composer's toggle and chips,
+    /// so the caret stays in the field and Return still saves.
+    func keepsKeyboardOnTap(_ isActive: Bool = true) -> some View {
+        background {
+            if isActive { KeyboardKeeper() }
+        }
     }
 }
 
@@ -30,9 +38,24 @@ private struct WindowTapHook: UIViewRepresentable {
     }
 }
 
+/// Marks the area of the view it is the background of.
+private struct KeyboardKeeper: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        KeyboardDismissTap.keepers.add(view)
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {}
+}
+
 /// Recognizes alongside every other gesture and never cancels or delays
 /// touches, so the tapped control gets its tap as usual.
 private final class KeyboardDismissTap: UITapGestureRecognizer, UIGestureRecognizerDelegate {
+    /// `keepsKeyboardOnTap` areas, held weakly.
+    static let keepers = NSHashTable<UIView>.weakObjects()
+
     init() {
         super.init(target: nil, action: nil)
         addTarget(self, action: #selector(tapped))
@@ -45,14 +68,17 @@ private final class KeyboardDismissTap: UITapGestureRecognizer, UIGestureRecogni
         view?.endEditing(true)
     }
 
-    /// A touch in a text field or text view is that field's: no flicker.
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // A touch in a text field or text view is that field's: no flicker.
         var view = touch.view
         while let current = view {
             if current is UITextField || current is UITextView { return false }
             view = current.superview
         }
-        return true
+        let keeps = Self.keepers.allObjects.contains { keeper in
+            keeper.window != nil && keeper.window === touch.window && keeper.bounds.contains(touch.location(in: keeper))
+        }
+        return !keeps
     }
 
     func gestureRecognizer(

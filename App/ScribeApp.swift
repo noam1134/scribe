@@ -46,9 +46,6 @@ struct ScribeApp: App {
                 IntentLinkInbox.shared.link = nil
                 loader.pendingLink = link
             }
-            #if os(iOS) && DEBUG
-            .settingsTestEntry()
-            #endif
             .environment(loader)
         }
         #if os(iOS)

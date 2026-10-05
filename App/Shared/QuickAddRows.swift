@@ -23,6 +23,7 @@ struct QuickAddChipRow: View {
                     }
                 }
             }
+            .scrollClipDisabled() // clipping draws a grey band behind the glass chips
         } else {
             Text("Try \u{201C}call mom tomorrow 9am #family\u{201D}")
                 .font(.footnote)

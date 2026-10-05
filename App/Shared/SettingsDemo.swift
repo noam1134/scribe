@@ -7,7 +7,6 @@ import ScribeCore
 ///
 /// - `-demoSync signedIn | offline | signedOut | checking` — the iCloud row.
 /// - `-demoPermission denied | allowed | notDetermined` — notification permission.
-/// - `-settingsButton` — the iPhone's Settings button over the app.
 /// - `-showSettings` — Settings open at launch.
 @MainActor
 enum SettingsDemo {
@@ -47,10 +46,6 @@ enum SettingsDemo {
         case "notDetermined": .notDetermined
         default: nil
         }
-    }
-
-    static var showsSettingsButton: Bool {
-        isActive && CommandLine.arguments.contains("-settingsButton")
     }
 
     static var showsSettingsAtLaunch: Bool {

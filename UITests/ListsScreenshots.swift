@@ -36,7 +36,6 @@ final class ListsScreenshots: XCTestCase {
         shoot("03-show-completed")
         app.buttons["More"].tap()
         app.buttons["Show Completed"].tap()
-        app.buttons["section-Work"].tap()
         app.buttons["section-Thailand"].tap()
 
         app.staticTexts["Book flights to Bangkok"].tap()
@@ -47,7 +46,7 @@ final class ListsScreenshots: XCTestCase {
 
         app.buttons["section-Thailand"].press(forDuration: 1)
         XCTAssertTrue(app.buttons["Rename"].waitForExistence(timeout: 5))
-        shoot("05-header-long-press")
+        shoot("05-header-menu")
         app.buttons["Rename"].tap()
         XCTAssertTrue(app.textFields["categoryNameField"].waitForExistence(timeout: 5))
         shoot("06-rename-inline")
@@ -66,12 +65,16 @@ final class ListsScreenshots: XCTestCase {
         shoot("09-composer")
         let notes = app.descendants(matching: .any)["quickAddNotes"].firstMatch
         notes.tap()
-        notes.typeText("Sleeper, lower berth\nBook at the station")
-        sleep(1)
+        notes.typeText("Sleeper, lower berth\nBook at the station\nBring snacks")
         shoot("10-composer-notes")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        sleep(1)
+        // Blank space beside the notes closes the keyboard.
+        notes.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5)).withOffset(CGVector(dx: -20, dy: 0)).tap()
         shoot("11-composer-keyboard-closed")
+        app.buttons["Add"].tap()
+
+        app.navigationBars["Lists"].buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        shoot("12-settings")
     }
 
     private func shoot(_ name: String) {

@@ -8,6 +8,8 @@ struct RootView: View {
 
     @State private var router = AppRouter()
     @State private var undo = UndoCenter()
+    /// For the composer's height cap.
+    @State private var screenHeight: CGFloat = 800
     @Environment(\.scenePhase) private var scenePhase
     @Environment(StoreLoader.self) private var loader
 
@@ -32,6 +34,7 @@ struct RootView: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .closesKeyboardOnTapOutside()
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
         .tabViewBottomAccessory {
             QuickAddBar()
         }
@@ -39,7 +42,7 @@ struct RootView: View {
             UndoToast()
         }
         .sheet(isPresented: $router.isComposing) {
-            QuickAddSheet(store: store, categoryID: router.composerCategoryID)
+            QuickAddSheet(store: store, categoryID: router.composerCategoryID, maxHeight: screenHeight * 0.6)
         }
         .saveErrorAlert(router)
         .environment(router)
@@ -54,6 +57,7 @@ struct RootView: View {
         }
         #if DEBUG
         .task { DemoData.seedIfRequested(store) }
+        .settingsAtLaunchForScreenshots()
         #endif
     }
 }

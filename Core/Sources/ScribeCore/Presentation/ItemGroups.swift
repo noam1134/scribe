@@ -1,7 +1,8 @@
 import Foundation
 
-/// The three sections of a category screen (spec §9.2): open tasks, memos,
-/// then done tasks (most recently completed first).
+/// One category's items split for display (the Mac list, §9.3; the
+/// iPhone's Lists sections, §20): open tasks, memos, then done tasks (most
+/// recently completed first).
 public struct CategoryContents: Equatable, Sendable {
     public var openTasks: [ItemSnapshot]
     public var memos: [ItemSnapshot]
