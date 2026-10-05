@@ -85,16 +85,22 @@ public final class QuickAddComposer {
 
     /// Adds the item and clears the composer. Returns nil when there is no
     /// title. An unknown `#tag` that wasn't turned into a category stays in
-    /// the title instead of being dropped.
+    /// the title instead of being dropped. A default category that no longer
+    /// exists (deleted here or by sync, or a stale add link) means the Inbox.
     @discardableResult
     public func save() throws -> UUID? {
-        var draft = parsed
+        let categories = store.categories
+        let date = now()
+        var draft = parser.parse(text, categories: categories, now: date, disabled: disabled)
         if case .unknown = draft.category {
-            draft = parser.parse(text, categories: store.categories, now: now(), disabled: disabled.union([.category]))
+            draft = parser.parse(text, categories: categories, now: date, disabled: disabled.union([.category]))
         }
         guard var item = draft.itemDraft else { return nil }
         if isMemo { item.kind = .memo }
-        if item.categoryID == nil, case .none = draft.category { item.categoryID = defaultCategoryID }
+        if item.categoryID == nil, case .none = draft.category,
+           let defaultID = defaultCategoryID, categories.contains(where: { $0.id == defaultID }) {
+            item.categoryID = defaultID
+        }
         let id = try store.addItem(item)
         reset()
         return id

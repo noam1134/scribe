@@ -87,6 +87,35 @@ struct QuickAddComposerTests {
         #expect(store.item(fix)?.categoryID == home)
     }
 
+    /// An add link or the on-screen category can name a category that was
+    /// deleted (here or by sync) or never existed: file into the Inbox
+    /// instead of failing every Add.
+    @Test func aMissingDefaultCategoryFilesToTheInbox() throws {
+        let (store, composer) = try make()
+        let trip = try store.addCategory(CategoryDraft(name: "Thailand"))
+        composer.defaultCategoryID = trip
+        try store.deleteCategory(trip)
+        composer.text = "book flights"
+        let flights = try #require(try composer.save())
+        #expect(store.item(flights)?.categoryID == nil)
+        #expect(composer.text.isEmpty)
+
+        composer.defaultCategoryID = UUID()
+        composer.text = "renew passport"
+        let passport = try #require(try composer.save())
+        #expect(store.item(passport)?.categoryID == nil)
+    }
+
+    @Test func unknownTagFilesToTheDefaultCategoryAndStaysInTheTitle() throws {
+        let (store, composer) = try make()
+        let work = try store.addCategory(CategoryDraft(name: "Work"))
+        composer.defaultCategoryID = work
+        composer.text = "buy milk #grocries"
+        let id = try #require(try composer.save())
+        #expect(store.item(id)?.title == "buy milk #grocries")
+        #expect(store.item(id)?.categoryID == work)
+    }
+
     nonisolated static let liveParseTexts: [String] = [
         "",
         "book flights fri 18:00 #thai",
