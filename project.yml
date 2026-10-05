@@ -19,7 +19,14 @@ targets:
     type: application
     supportedDestinations: [iOS, macOS]
     sources:
-      - App
+      - path: App
+        excludes:
+          - "iOS/**"
+          - "macOS/**"
+      - path: App/iOS
+        destinationFilters: [iOS]
+      - path: App/macOS
+        destinationFilters: [macOS]
     dependencies:
       - package: ScribeCore
       - target: ScribeWidgets
@@ -31,6 +38,9 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIBackgroundModes: [remote-notification]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.noamchuri.scribe
+            CFBundleURLSchemes: [scribe]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.noamchuri.scribe
@@ -62,3 +72,24 @@ targets:
         CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]: Widgets/ScribeWidgets-iOS.entitlements
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Widgets/ScribeWidgets-macOS.entitlements
         ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
+  ScribeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - UITests
+    dependencies:
+      - target: Scribe
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.noamchuri.scribe.uitests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Scribe:
+    build:
+      targets:
+        Scribe: all
+    test:
+      targets:
+        - ScribeUITests

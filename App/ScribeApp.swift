@@ -3,20 +3,23 @@ import SwiftUI
 
 @main
 struct ScribeApp: App {
-    @State private var store: SwiftDataItemStore
-
-    init() {
-        do {
-            _store = State(initialValue: SwiftDataItemStore(container: try StoreFactory.shared(syncsWithCloudKit: true)))
-        } catch {
-            // Phase 2 replaces this with the full-screen error + Retry from spec §13.
-            fatalError("Store failed to open: \(error)")
-        }
-    }
+    @State private var loader = StoreLoader()
 
     var body: some Scene {
         WindowGroup {
-            StoreSmokeView(store: store)
+            Group {
+                switch loader.state {
+                case .loading:
+                    ProgressView()
+                case .failed(let message):
+                    StoreFailedView(message: message, retry: loader.load)
+                case .ready(let store):
+                    RootView(store: store)
+                }
+            }
+            .task {
+                if case .loading = loader.state { loader.load() }
+            }
         }
     }
 }
