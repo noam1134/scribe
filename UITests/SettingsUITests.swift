@@ -83,7 +83,7 @@ final class SettingsUITests: XCTestCase {
         launch(["-demoSync", "offline", "-demoPermission", "denied"])
         openSettings()
 
-        XCTAssertEqual(app.staticTexts["syncHeadline"].label, "Syncing with iCloud")
+        XCTAssertEqual(app.staticTexts["syncHeadline"].label, "Sync paused")
         XCTAssertTrue(app.staticTexts["lastSynced"].label.hasPrefix("Last synced "))
         XCTAssertTrue(app.staticTexts["syncProblem"].label.hasPrefix("Offline — changes are saved on this iPhone"))
 
@@ -97,7 +97,8 @@ final class SettingsUITests: XCTestCase {
         launch(["-demoSync", "signedIn"])
         openSettings()
         XCTAssertEqual(app.staticTexts["syncHeadline"].label, "Syncing with iCloud")
-        XCTAssertTrue(app.staticTexts["lastSynced"].label.hasPrefix("Last synced at "))
+        // Four minutes ago: "at 21:49", or "yesterday at 23:58" just after midnight.
+        XCTAssertTrue(app.staticTexts["lastSynced"].label.hasPrefix("Last synced "))
         XCTAssertFalse(app.staticTexts["syncProblem"].exists)
     }
 

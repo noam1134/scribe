@@ -114,6 +114,8 @@ Settings shipped (spec §21). Still open:
   - Mac recorder: a new shortcut works at once and the menu bar note follows; Restore ⌃⇧Space; recording a macOS shortcut asks "Use Anyway" and then shows the warning.
 - The summary time picker follows the device's 12/24-hour setting; the rest of the app shows 24-hour times (decide at localization).
 - Import from a JSON export isn't built (spec §17 migration path).
+- Mac Settings is a fixed 480 × 640 window that scrolls; size it to its content (or split it into tabs) if it grows, and add a File › "Export…" command.
+- Export encodes on the main actor; move it off if a large store ever makes the tap feel slow.
 
 ## Later (after v1)
 

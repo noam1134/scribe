@@ -22,17 +22,27 @@ enum SettingsExport {
     }
 
     #if os(iOS)
-    /// The export as a file in a fresh temporary folder (the previous one
-    /// is removed), for the share sheet.
+    /// Where the share sheet's file lives while the sheet is up.
+    static var folder: URL {
+        FileManager.default.temporaryDirectory.appending(path: "Export", directoryHint: .isDirectory)
+    }
+
+    /// The export as a file in a fresh temporary folder (a leftover one is
+    /// removed first), for the share sheet.
     static func writeFile(from store: any ItemStore) throws -> URL {
         let data = try store.exportJSON()
         let files = FileManager.default
-        let folder = files.temporaryDirectory.appending(path: "Export", directoryHint: .isDirectory)
-        try? files.removeItem(at: folder)
+        removeFile()
         try files.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appending(path: filename)
         try data.write(to: url, options: .atomic)
         return url
+    }
+
+    /// Once the share sheet is done with it, the copy goes: the export is
+    /// all of the user's notes.
+    static func removeFile() {
+        try? FileManager.default.removeItem(at: folder)
     }
     #endif
 }
@@ -54,7 +64,15 @@ enum ShareSheet {
         while let presented = top.presentedViewController, !presented.isBeingDismissed {
             top = presented
         }
-        top.present(UIActivityViewController(activityItems: [url], applicationActivities: nil), animated: true)
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        sheet.completionWithItemsHandler = { activity, completed, _, _ in
+            // A cancelled Save to Files or AirDrop goes back to the sheet,
+            // which still needs the file; closing the sheet (no activity)
+            // or finishing one ends it.
+            guard completed || activity == nil else { return }
+            Task { @MainActor in SettingsExport.removeFile() }
+        }
+        top.present(sheet, animated: true)
     }
 }
 #endif

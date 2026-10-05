@@ -75,13 +75,13 @@ private struct SyncSection: View {
                 }
             }
         }
-        .task {
+        .onAppear {
             monitor.start()
-            await monitor.refreshAccount()
+            monitor.refreshAccount()
         }
         .onChange(of: scenePhase) { _, phase in
             // Back from the system's settings, maybe signed in.
-            if phase == .active { Task { await monitor.refreshAccount() } }
+            if phase == .active { monitor.refreshAccount() }
         }
     }
 }

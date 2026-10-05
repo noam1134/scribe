@@ -27,6 +27,11 @@ final class SyncMonitor {
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var container: CKContainer?
     @ObservationIgnored private var isStarted = false
+    /// The check still running; a newer request replaces it.
+    @ObservationIgnored private var accountCheck: Task<Void, Never>?
+    @ObservationIgnored private var accountCheckNumber = 0
+    /// The signed-in account's user record name, fetched once per account.
+    @ObservationIgnored private var identity: String?
 
     private init() {
         if StoreLoader.isUITesting {
@@ -61,29 +66,57 @@ final class SyncMonitor {
             MainActor.assumeIsolated { self?.record(outcome) }
         })
         observers.append(center.addObserver(forName: .CKAccountChanged, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in await self?.refreshAccount() }
+            Task { @MainActor in
+                self?.identity = nil // maybe another account now
+                self?.refreshAccount()
+            }
         })
-        Task { await refreshAccount() }
+        // Also tells whether the log still describes this account.
+        refreshAccount()
     }
 
-    /// Asks CloudKit for the account again (Settings appearing, the app
-    /// coming back from the system's settings, an account change).
-    func refreshAccount() async {
+    /// Asks CloudKit for the account again (start, Settings appearing, the
+    /// app coming back from the system's settings, an account change). A
+    /// newer request replaces one still running, so an older answer never
+    /// overwrites a newer one.
+    func refreshAccount() {
         guard !StoreLoader.isUITesting else { return }
-        guard let container = cloudKitContainer() else {
-            account = .unknown
-            return
+        accountCheck?.cancel()
+        accountCheckNumber += 1
+        let number = accountCheckNumber
+        accountCheck = Task { await checkAccount(number) }
+    }
+
+    private func checkAccount(_ number: Int) async {
+        var state = CloudAccountState.unknown
+        var identity = self.identity
+        if let container = cloudKitContainer() {
+            do {
+                state = CloudAccountState(try await container.accountStatus())
+                if state == .available, identity == nil {
+                    identity = try await container.userRecordID().recordName
+                }
+            } catch {
+                logger.error("Couldn't read the iCloud account: \(String(describing: error), privacy: .public)")
+                if state != .available { state = .unknown }
+            }
         }
-        do {
-            account = CloudAccountState(try await container.accountStatus())
-        } catch {
-            logger.error("Couldn't read the iCloud account: \(String(describing: error), privacy: .public)")
-            account = .unknown
+        guard number == accountCheckNumber, !Task.isCancelled else { return }
+        let previous = account
+        account = state
+        self.identity = state == .available ? identity : nil
+        if log.accountChecked(previous: previous, current: state, identity: self.identity) {
+            logger.info("Sync log started over for this iCloud account")
+            save()
         }
     }
 
     private func record(_ event: SyncEvent) {
         guard log.record(event) else { return }
+        save()
+    }
+
+    private func save() {
         if let defaults { log.save(to: defaults) }
     }
 

@@ -126,3 +126,13 @@ Spec §21; backlog (Phase 6 section → follow-ups; stale Phase 4/5 lines; the M
 - Screenshots: iPhone with `xcrun simctl launch … -uiTesting -showSettings -demoSync … -demoPermission …`; Mac from a background-launched Debug build (`open -g -n … --args -uiTesting -demoData -showSettings …`, `screencapture -l <window>`), never driven.
 - `SyncMonitor` keeps the CloudKit container it makes, so `CKAccountChanged` keeps arriving; a Mac process without the iCloud entitlement never makes one.
 - `QuickAddHotkey.status` is now backed by an `@Observable` state, refreshed at install, when Settings appears and after the recorder or Restore changes the shortcut.
+
+## Review fixes (2026-10-05)
+
+- A successful import or export also clears earlier offline / iCloud-busy failures of any kind (no "Offline" next to "Last synced just now"); storage full, sign-in, account and other errors still last until their own kind succeeds. A failed download that's offline says so ("changes from your other devices arrive once it's back online").
+- While a failure stands, the headline is "Sync paused" instead of "Syncing with iCloud" (e.g. a Mac whose setup keeps failing with CKErrorDomain 6).
+- A cancellation wrapped under `NSUnderlyingErrorKey` is ignored like a bare one; a failure with no error reads "The last upload to iCloud failed. Scribe will try again." (`SyncFailureReason.unexplained`).
+- `SyncLog.accountID` (CloudKit user record name): a different account, or a sign-in seen while the account can't be identified, starts the log over; signing out keeps it (`SyncLog.accountChecked`).
+- `SyncMonitor.refreshAccount()` is single-flight: a newer check cancels the running one and only the latest answer is applied.
+- iPhone export: the temporary file is deleted when the share sheet closes or an activity completes.
+- The signed-in UI test accepts "Last synced yesterday at …" just after midnight.
