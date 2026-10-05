@@ -10,7 +10,7 @@ Deferred in the Phase 2 (iPhone app) reviews.
 
 - A time-only phrase that rolls to tomorrow shows only "09:00" on its chip — label it "Tomorrow · 09:00" when no date token was typed; "this morning"/"this evening" roll to tomorrow once passed (ask the author).
 - A dismissed chip disables that kind for the rest of the composition (re-enable it when the dismissed text is gone? Product call).
-- The 150 pt sheet clips at accessibility text sizes.
+- The composer's compact height (252 pt since the Notes field) clips at accessibility text sizes.
 - The kind toggle ignores a typed `!memo`, and its accessibility label lacks a value.
 - An add link doesn't retarget an already-open composer.
 - A half-typed draft is lost if iOS terminates the app.
@@ -20,7 +20,6 @@ Deferred in the Phase 2 (iPhone app) reviews.
 - Upcoming doesn't roll to the new day if the app stays open past midnight (refresh on a significant time change).
 - "Add Time…" shows 09:00 but sets nothing until the wheel is scrolled.
 - `expandedItemID` lingers after the item leaves the list.
-- An item link to a done item opens inside the collapsed Done group (expand it).
 - Accessibility: no button trait on tap-to-edit, ~22 pt checkbox, no focus on expand.
 
 ### Categories
@@ -28,8 +27,6 @@ Deferred in the Phase 2 (iPhone app) reviews.
 - A restored category may tie on `sortIndex` and skips the duplicate-name check.
 - Reorder is index-based across a possible sync gap (move by ids).
 - Colour swatches lack button/selected traits, have 26 pt targets, and draw a white check on yellow/mint/cyan.
-- A whitespace-only add leaves the text in the field.
-- The add field can only be dismissed with Return.
 - The emoji placeholder symbol should be `.accessibilityHidden(true)`.
 
 ### Undo toast
@@ -48,13 +45,24 @@ Deferred in the Phase 2 (iPhone app) reviews.
 - Core tests: empty/out-of-range `IndexSet`, restore after an item was deleted, day-part edge phrases.
 - Core tests: `UndoCenter` (throwing undo, dismiss, replaced-offer timer).
 - Core tests: `QuickAddComposer` `reset()`, `createUnknownCategory` no-op, save keeping the text when `addItem` throws.
-- `AppRouter.open` / `visibleCategoryID` / Retry (consider moving link resolution into Core).
+- `AppRouter.open` / Retry (consider moving link resolution into Core).
 - `offersExpire` uses a wall-clock sleep (watch for flakes).
 
 ### Code
 
 - The unknown-tag re-parse duplicates `QuickAddParser.nonInteractiveDraft` (give it a `disabled:` parameter).
 - The "Inbox" literal is repeated in six places.
+
+## Lists home tab follow-ups
+
+From the Lists change (spec §20, plan `2026-10-05-lists-home.md`).
+
+- Ticking a task with Show Completed off hides it at once, as on Upcoming. Consider a short linger or an Undo toast.
+- A header's long press opens a confirmation dialog (Rename / Delete), not a context menu: SwiftUI gives only list rows context menus. A UIKit `UIContextMenuInteraction` on the header could replace it.
+- A tap outside a text field closes the keyboard even when it lands on a button or chip (e.g. the composer's category chips) — the button still works. Judge the feel on the device.
+- Collapse state keeps the ids of deleted categories (so Undo restores the state); they are never pruned.
+- Lists reads every item, done ones included, on each render. Fine at personal scale; revisit if the store grows into the thousands.
+- The demo data's emoji draw as missing-glyph boxes in the iOS 27 simulator (Upcoming too); check on the device.
 
 ## Phase 3 (Mac app)
 

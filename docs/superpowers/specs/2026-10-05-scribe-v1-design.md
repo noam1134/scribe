@@ -248,14 +248,13 @@ Deep links: `scribe://add[?category=<uuid>]`, `scribe://item/<uuid>`, `scribe://
 
 ### 9.2 iPhone
 
-- **Floating glass tab bar:** Upcoming · Categories, and Search as a separate glass circle (`Tab(role: .search)`). `.tabBarMinimizeBehavior(.onScrollDown)`.
+- **Floating glass tab bar:** Lists · Upcoming, and Search as a separate glass circle (`Tab(role: .search)`). `.tabBarMinimizeBehavior(.onScrollDown)`. The app opens on Lists (§20).
 - **Quick-add capsule** in `.tabViewBottomAccessory`, reachable from every tab.
 - **Upcoming:** agenda (§6) with day headers.
-- **Categories:** Inbox row first, then categories (emoji, name, open-item count, color dot). Inline add / rename / reorder / emoji+color picker.
-- **Category screen:** open tasks, then memos (faint note glyph, no checkbox), then a collapsed "Done" section.
+- **Lists** (replaces the Categories tab and the category screen, §20): every category as a collapsible section — open tasks, then memos (faint note glyph, no checkbox), done items only with Show Completed — with the Inbox first while it holds something. Inline add / rename / reorder / emoji+color picker in Edit mode.
 - **Row interactions:** tap checkbox completes; tap row expands it for inline editing (title, body, and a row of glass chips for date, category, kind); swipe right = complete, swipe left = delete with Undo toast; long-press menu = move to category, convert task↔memo, set date.
 - **Search:** title + body across all items including done, results grouped by category.
-- **Settings:** toolbar button on the Categories tab.
+- **Settings:** toolbar button on the Lists tab.
 
 ### 9.3 Mac
 
@@ -383,3 +382,16 @@ Decided by the author after using the iPhone app:
 - **Inbox becomes a holding place, not a destination.** It holds items whose category was deleted (and, until Phase 4 decides otherwise, entries made without a category). Its row on the Categories screen shows only while something is in it. "Move to" and the inline editor's category picker don't list it.
 - **Siri / Shortcuts / Control adds (Phase 4)** follow the same rule: ask for a category (or infer one) instead of filing to the Inbox.
 - **Quick-add hotkey default is `⌃⇧Space` (§8).** `⌃⌥Space` is macOS's input-source shortcut ("Select next source in Input menu"), enabled on the author's Mac (ABC + Hebrew-PC). Decided in the Phase 3 review.
+
+## 20. Lists Home Tab (2026-10-05)
+
+Decided by the author after using the iPhone app; replaces the Categories tab and the category screen of §9.2. iPhone only — the Mac app, Upcoming and Search are unchanged.
+
+- **Tabs:** Lists (first; the app opens on it) · Upcoming · Search circle.
+- **Lists:** one collapsible section per category, in the user's order. The header shows the color dot, emoji + name, the open-item count, a disclosure chevron and a **+** that opens the composer with that category picked; tapping the header collapses or expands it; a long press offers Rename (the inline category editor) and Delete (with Undo). Inside: open tasks, then memos, as the usual rows (inline editing, swipes, long-press menu). An empty category shows a faint "No items". The Inbox is the first section only while it shows something, and has no **+**, Rename or Delete.
+- **Per device, not synced:** which sections are collapsed (new categories start expanded) and **Show Completed** (toolbar ⋯ menu; off by default), which adds done items, struck through, at the end of each section.
+- **Toolbar:** Edit (Settings sits beside it), ⋯, and **+** to add a category inline (a duplicate name is explained under the field). Edit shows only the category rows: drag to reorder, tap to rename / pick emoji and color, delete with Undo.
+- **Item links** (`scribe://item/<id>` from notifications and widgets) open Lists, leave Edit mode, expand the item's section, scroll to the item and open its editor. The row being edited never disappears, so a done item opened this way shows while its editor is open even with Show Completed off (which stays off).
+- **Quick-add capsule:** stays on every tab and picks no category; a section's **+** picks its own. §19 still applies.
+- **Keyboard:** a tap anywhere outside a text field closes the keyboard — in lists, in the composer and in the inline editor — and still does what it would have done (buttons and chips work on the first tap); a tap on another field moves the focus without the keyboard dropping. Scrolling a list closes it too.
+- **Notes in the composer:** a multi-line Notes field under the main line (faint until used, laid out in its own text direction, §9.4). Focusing it grows the sheet; Return in the main line still saves; Add saves the title and the notes (as the item's body) together, for tasks and memos.

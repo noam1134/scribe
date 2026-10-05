@@ -64,7 +64,7 @@ Tests: categories in sort order, empty ones included; open tasks then memos in s
 
 - `AppRouter.Tab` = `.lists` (default), `.upcoming`, `.search`. Removed: `Destination`, `categoriesPath`, `visibleCategoryID`. Added: `lists: ListsPreferences` (saved on change), `isEditingLists`, `listsScrollTarget`.
 - `open(.item(id))`: close the composer, show Lists, leave Edit mode, expand the item's section, open its editor, scroll to it. A done item stays visible while its editor is open (the `keeping:` rule), whatever Show Completed says.
-- `ListsView`: per section a header (dot or tray, emoji + name, open count, chevron, **+** → `compose(in:)`; tap toggles; long-press → Rename / Delete with Undo), then `ItemRow`s, or a faint "No items". Toolbar: Edit/Done (leading, Settings slot before it), ⋯ with a Show Completed toggle, **+** for an inline category field (duplicate name explained inline; an empty field closes when it loses focus). Edit mode lists only category rows: drag to reorder, tap or Rename to edit inline, delete with Undo.
+- `ListsView`: per section a header (dot or tray, emoji + name, open count, chevron, **+** → `compose(in:)`; tap toggles; long-press → a Rename / Delete dialog, Delete with Undo), then `ItemRow`s, or a faint "No items". Toolbar: Edit/Done (leading, Settings slot before it), ⋯ with a Show Completed toggle, **+** for an inline category field (duplicate name explained inline; an empty field closes when it loses focus). Edit mode lists only category rows: drag to reorder, tap or Rename to edit inline, delete with Undo.
 - UI tests: tabs; section collapse; section **+** preselects; Show Completed; Edit mode; delete + undo; item link into a collapsed section; link to a done item. Existing tests that meant Upcoming tap Upcoming first.
 
 ### Task 4: Keyboard dismissal
@@ -77,7 +77,7 @@ Under the main line, aligned with its text: `TextField("Notes", axis: .vertical)
 
 ### Task 6: Screenshots and docs
 
-Opt-in `ListsScreenshots` (env `SCRIBE_LISTS_SCREENSHOTS=1`) attaches: expanded, collapsed, Show Completed, Edit mode, composer with Notes. Spec §20 + §9.2 pointers, README feature line, backlog.
+Opt-in `ListsScreenshots` (`TEST_RUNNER_SCRIBE_SCREENSHOTS=<folder>`) saves and attaches: Lists, collapsed, Show Completed, inline editor, header long press, inline rename, Edit mode, composer, composer with Notes, keyboard closed. Spec §20 + §9.2 pointers, README feature line, backlog.
 
 ## Decisions
 
@@ -85,7 +85,7 @@ Opt-in `ListsScreenshots` (env `SCRIBE_LISTS_SCREENSHOTS=1`) attaches: expanded,
 2. **Ticking a task with Show Completed off** hides it at once, as on Upcoming (no linger, no Undo toast; Show Completed brings it back).
 3. **Inbox** shows while it has something visible: open items, or done ones when Show Completed is on (or the edited one). No **+**, no Rename/Delete, not in Edit mode; it collapses like the others.
 4. **Collapse state** is stored as the set of collapsed section ids, so new categories start expanded; ids of deleted categories stay (a restored category keeps its state). Collapsing the section that holds the open editor closes the editor.
-5. **Rename from a header** opens the inline category editor as the first row of that section (the section shows it even when collapsed); Edit mode opens the same editor in place of the category row.
+5. **Header long press** opens a confirmation dialog with Rename and Delete — SwiftUI only gives list rows a context menu (tried: a menu on the header, and on its button, never opens). Rename opens the inline category editor as the first row of that section (shown even when collapsed); Edit mode opens the same editor in place of the category row.
 6. **Keyboard:** any tap outside a text input closes the keyboard and still does what it would have done (buttons and chips work on the first tap); a tap on another text field moves focus without the keyboard dropping. Scrolling any list closes it.
 7. **Composer detents:** compact height (fits the Notes line) and `.large`; focusing Notes switches to `.large`; the sheet stays large until dragged down.
 8. **Item links** always land in Lists (not Upcoming), leave Edit mode, and expand only the item's section.
