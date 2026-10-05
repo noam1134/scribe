@@ -14,6 +14,9 @@ settings:
 packages:
   ScribeCore:
     path: Core
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    exactVersion: 3.1.0
 targets:
   Scribe:
     type: application
@@ -29,6 +32,8 @@ targets:
         destinationFilters: [macOS]
     dependencies:
       - package: ScribeCore
+      - package: KeyboardShortcuts
+        destinationFilters: [macOS]
       - target: ScribeWidgets
     info:
       path: App/Info.plist
@@ -49,6 +54,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]: App/Scribe-iOS.entitlements
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/Scribe-macOS.entitlements
         ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
+        LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]: "@executable_path/../Frameworks"
   ScribeWidgets:
     type: app-extension
     supportedDestinations: [iOS, macOS]

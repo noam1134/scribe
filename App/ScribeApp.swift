@@ -4,9 +4,12 @@ import SwiftUI
 @main
 struct ScribeApp: App {
     @State private var loader = StoreLoader()
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var macDelegate
+    #endif
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             Group {
                 switch loader.state {
                 case .loading:
@@ -19,6 +22,9 @@ struct ScribeApp: App {
             }
             .task {
                 if case .loading = loader.state { loader.load() }
+                #if os(macOS)
+                macDelegate.start(loader: loader)
+                #endif
             }
             .onOpenURL { url in
                 // On the always-present root, so a link that launches the app
@@ -27,5 +33,12 @@ struct ScribeApp: App {
             }
             .environment(loader)
         }
+        #if os(macOS)
+        .commands { MacCommands() }
+        #endif
+
+        #if os(macOS)
+        MacMenuBarScene(loader: loader)
+        #endif
     }
 }
