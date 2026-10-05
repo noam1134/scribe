@@ -27,23 +27,25 @@ final class QuickAddPanelController {
 
     func show() {
         if case .loading = loader.state { loader.load() }
-        guard case .ready(let store) = loader.state else {
-            // The main window explains a store that won't open (spec §13).
-            MacLog.hotkey.error("Quick-add panel not shown: the store isn't open")
-            NSSound.beep()
-            return
-        }
         let panel = self.panel ?? QuickAddPanel()
         self.panel = panel
         panel.onResignKey = { [weak self] in self?.close() }
-        let content = QuickAddPanelView(
-            store: store,
-            close: { [weak self] in self?.close() },
-            resize: { [weak panel] height in panel?.setHeightKeepingTop(height) }
-        )
-        let host = FirstMouseHostingView(rootView: content)
-        host.sizingOptions = []
-        panel.contentView = host
+        let close: () -> Void = { [weak self] in self?.close() }
+        let resize: (CGFloat) -> Void = { [weak panel] height in panel?.setHeightKeepingTop(height) }
+        if case .ready(let store) = loader.state {
+            panel.contentView = FirstMouseHostingView.make(PanelChrome(resize: resize) {
+                QuickAddPanelView(store: store, close: close)
+            })
+        } else {
+            // Say so instead of failing silently; the window has Retry (spec §13).
+            MacLog.hotkey.error("Quick-add panel: the store isn't open")
+            panel.contentView = FirstMouseHostingView.make(PanelChrome(resize: resize) {
+                StoreProblemView { [weak self] in
+                    self?.close()
+                    self?.openMainWindow()
+                }
+            })
+        }
         panel.place(width: Self.width, height: 130)
 
         // A non-activating panel becomes key without activating Scribe.
@@ -63,6 +65,14 @@ final class QuickAddPanelController {
         removeEscapeMonitor()
         panel.onResignKey = nil
         panel.orderOut(nil)
+    }
+
+    /// "Open Scribe" from the store-problem panel: the window shows the
+    /// error and Retry. With every window closed, a pending link makes the
+    /// menu bar open one.
+    private func openMainWindow() {
+        NSApp.activate()
+        if !MacWindows.bringMainForward() { loader.pendingLink = .upcoming }
     }
 
     /// Esc arrives as a key-down with key code 53: `.onExitCommand` never
@@ -150,6 +160,13 @@ final class QuickAddPanel: NSPanel {
 
 /// Takes the first click even though Scribe isn't the active app.
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    /// The panel sizes itself from the content's reported height.
+    static func make(_ rootView: Content) -> FirstMouseHostingView {
+        let view = FirstMouseHostingView(rootView: rootView)
+        view.sizingOptions = []
+        return view
+    }
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
@@ -159,10 +176,48 @@ private extension NSRect {
     }
 }
 
+/// The panel's glass, at its width; reports its height so the window fits.
+private struct PanelChrome<Content: View>: View {
+    let resize: (CGFloat) -> Void
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .padding(18)
+            .frame(width: QuickAddPanelController.width, alignment: .leading)
+            .glassEffect(.regular, in: .rect(cornerRadius: 26))
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { resize($0) }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// Shown instead of the composer when the store couldn't be opened.
+private struct StoreProblemView: View {
+    let openScribe: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Scribe can’t open your notes").font(.headline)
+                    Text("Nothing was deleted. Open Scribe to try again.")
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+            }
+            Spacer(minLength: 8)
+            Button("Open Scribe", action: openScribe)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+        }
+    }
+}
+
 private struct QuickAddPanelView: View {
     let store: any ItemStore
     let close: () -> Void
-    let resize: (CGFloat) -> Void
 
     private enum Field: Hashable { case text }
 
@@ -170,10 +225,9 @@ private struct QuickAddPanelView: View {
     @State private var error: String?
     @FocusState private var focus: Field?
 
-    init(store: any ItemStore, close: @escaping () -> Void, resize: @escaping (CGFloat) -> Void) {
+    init(store: any ItemStore, close: @escaping () -> Void) {
         self.store = store
         self.close = close
-        self.resize = resize
         _composer = State(initialValue: QuickAddComposer(store: store))
     }
 
@@ -193,12 +247,6 @@ private struct QuickAddPanelView: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(18)
-        .frame(width: QuickAddPanelController.width, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: 26))
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { resize($0) }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { focus = .text }
         .onChange(of: composer.text) { error = nil }
     }
