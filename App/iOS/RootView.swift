@@ -1,8 +1,8 @@
 import ScribeCore
 import SwiftUI
 
-/// iPhone app: floating glass tab bar with Upcoming, Categories and Search,
-/// and the quick-add capsule above it on every tab (spec §9.2).
+/// iPhone app: floating glass tab bar with Lists, Upcoming and Search, and
+/// the quick-add capsule above it on every tab (spec §9.2, §20).
 struct RootView: View {
     let store: SwiftDataItemStore
 
@@ -14,17 +14,14 @@ struct RootView: View {
     var body: some View {
         @Bindable var router = router
         TabView(selection: $router.tab) {
+            Tab("Lists", systemImage: "list.bullet", value: AppRouter.Tab.lists) {
+                NavigationStack {
+                    ListsView(store: store)
+                }
+            }
             Tab("Upcoming", systemImage: "calendar", value: AppRouter.Tab.upcoming) {
                 NavigationStack {
                     UpcomingView(store: store)
-                }
-            }
-            Tab("Categories", systemImage: "square.stack", value: AppRouter.Tab.categories) {
-                NavigationStack(path: $router.categoriesPath) {
-                    CategoriesView(store: store)
-                        .navigationDestination(for: AppRouter.Destination.self) { destination in
-                            CategoryDetailView(store: store, destination: destination)
-                        }
                 }
             }
             Tab(value: AppRouter.Tab.search, role: .search) {
@@ -54,5 +51,8 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.refresh() }
         }
+        #if DEBUG
+        .task { DemoData.seedIfRequested(store) }
+        #endif
     }
 }

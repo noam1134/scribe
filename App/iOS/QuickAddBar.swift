@@ -1,14 +1,15 @@
 import SwiftUI
 
 /// The glass capsule above the tab bar (spec §8). Tapping it opens the
-/// composer, filed into the category on screen if there is one.
+/// composer with no category picked; a Lists section's + picks its own
+/// (spec §20).
 struct QuickAddBar: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
     var body: some View {
         Button {
-            router.compose(in: router.visibleCategoryID)
+            router.compose(in: nil)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "plus.circle.fill")

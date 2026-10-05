@@ -3,9 +3,14 @@ import Foundation
 import ScribeCore
 
 /// `-uiTesting -demoData` fills the fresh in-memory store with a few
-/// categories and items, for looking at the Mac UI. Debug builds only.
+/// categories and items, for looking at the UI and for UI tests. Debug
+/// builds only.
 @MainActor
 enum DemoData {
+    /// Fixed ids, so UI tests can open their `scribe://item/` links.
+    static let passportID = UUID(uuidString: "5C1B0E00-0000-4000-8000-000000000001")!
+    static let gymID = UUID(uuidString: "5C1B0E00-0000-4000-8000-000000000002")!
+
     static var isRequested: Bool {
         StoreLoader.isUITesting && CommandLine.arguments.contains("-demoData")
     }
@@ -25,11 +30,17 @@ enum DemoData {
             try store.addItem(ItemDraft(title: "Review Dan’s pull request", categoryID: work, due: due(0, 10 * 60 + 30)))
             try store.addItem(ItemDraft(title: "Book flights to Bangkok", body: "Window seat, morning flight", categoryID: trip, due: due(0)))
             try store.addItem(ItemDraft(title: "Hotel in Chiang Mai", categoryID: trip, due: due(2)))
-            try store.addItem(ItemDraft(title: "Passport number", body: "Expires 2031", kind: .memo, categoryID: trip))
+            let now = Date()
+            try store.restoreItem(ItemSnapshot(
+                id: passportID, title: "Passport number", body: "Expires 2031", kind: .memo,
+                categoryID: trip, createdAt: now, updatedAt: now
+            ))
             try store.addItem(ItemDraft(title: "לקנות חלב", categoryID: home, due: due(1, 18 * 60)))
             try store.addItem(ItemDraft(title: "ארוחת שבת עם המשפחה", kind: .memo, categoryID: home, due: due(4)))
-            let done = try store.addItem(ItemDraft(title: "Renew gym membership", categoryID: home))
-            try store.setDone(done, true)
+            try store.restoreItem(ItemSnapshot(
+                id: gymID, title: "Renew gym membership", categoryID: home,
+                isDone: true, doneAt: now, createdAt: now, updatedAt: now
+            ))
             let orphan = try store.addCategory(CategoryDraft(name: "Old"))
             try store.addItem(ItemDraft(title: "Call the bank", categoryID: orphan))
             try store.deleteCategory(orphan) // leaves an item in the Inbox
@@ -38,6 +49,7 @@ enum DemoData {
         }
     }
 
+    #if os(macOS)
     /// `-demoShow <category name>`, `-demoEdit <item title>` and
     /// `-demoSearch <text>` put the window in a given state.
     static func applyLaunchState(to router: MacRouter) {
@@ -54,5 +66,6 @@ enum DemoData {
             router.searchText = text
         }
     }
+    #endif
 }
 #endif

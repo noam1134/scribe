@@ -2,32 +2,42 @@ import Foundation
 import Observation
 import ScribeCore
 
-/// Navigation state for the iPhone app: selected tab, the Categories stack,
-/// the quick-add sheet, the one row being edited, and error alerts.
+/// Navigation state for the iPhone app: selected tab, the Lists screen's
+/// state, the quick-add sheet, the one row being edited, and error alerts.
 @MainActor
 @Observable
 final class AppRouter {
     enum Tab: Hashable {
-        case upcoming, categories, search
+        case lists, upcoming, search
     }
 
-    enum Destination: Hashable {
-        case inbox
-        case category(UUID)
-    }
-
-    var tab: Tab = .upcoming
-    var categoriesPath: [Destination] = []
+    var tab: Tab = .lists
     var isComposing = false
     var composerCategoryID: UUID?
     /// The row showing its inline editor; one at a time.
     var expandedItemID: UUID?
     var alertMessage: String?
 
-    /// The category on screen, so quick-add files into it by default.
-    var visibleCategoryID: UUID? {
-        guard tab == .categories, case .category(let id)? = categoriesPath.last else { return nil }
-        return id
+    /// Collapsed sections and Show Completed, kept on this device (spec §20).
+    var lists: ListsPreferences {
+        didSet { lists.save(to: Self.preferences) }
+    }
+    /// Lists shows only the category rows, to reorder, edit and delete them.
+    var isEditingLists = false
+    /// The row Lists scrolls to once it has laid out (an item link).
+    var listsScrollTarget: UUID?
+
+    /// UI tests start from the defaults on every launch.
+    private static let preferences: UserDefaults = {
+        guard StoreLoader.isUITesting else { return .standard }
+        let name = "com.noamchuri.scribe.uitesting"
+        let defaults = UserDefaults(suiteName: name) ?? .standard
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }()
+
+    init() {
+        lists = ListsPreferences(from: Self.preferences)
     }
 
     func compose(in categoryID: UUID?) {
@@ -46,9 +56,12 @@ final class AppRouter {
         case .item(let id):
             guard let item = store.item(id) else { return }
             isComposing = false
-            tab = .categories
-            categoriesPath = [item.categoryID.map(Destination.category) ?? .inbox]
+            tab = .lists
+            isEditingLists = false
+            lists.expand(ListSections.sectionID(for: item, categories: store.categories))
+            // A done item stays on screen while its editor is open.
             expandedItemID = id
+            listsScrollTarget = id
         }
     }
 

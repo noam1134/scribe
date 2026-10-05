@@ -61,7 +61,7 @@ final class NotificationUITests: XCTestCase {
         XCTAssertTrue(openBanner.waitForExistence(timeout: 120), "the second alert should fire a minute later")
         openBanner.tap()
         let title = app.textFields["titleField"]
-        XCTAssertTrue(title.waitForExistence(timeout: 10), "the item should open in its category")
+        XCTAssertTrue(title.waitForExistence(timeout: 10), "the item should open in Lists")
         XCTAssertEqual(title.value as? String, openTitle)
 
         // The summary lists today's open items (the done one is gone) and opens Upcoming.
