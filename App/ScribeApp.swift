@@ -34,6 +34,7 @@ struct ScribeApp: App {
             .environment(loader)
         }
         #if os(macOS)
+        .defaultSize(width: 960, height: 640)
         .commands { MacCommands() }
         #endif
 
