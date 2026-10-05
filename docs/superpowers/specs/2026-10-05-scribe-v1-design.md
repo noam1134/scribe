@@ -362,3 +362,15 @@ Each phase gets its own implementation plan, written when the previous phase is 
 - Sharing a category with another person.
 - Recurring items, sub-checklists, attachments.
 - Hebrew App Shortcut phrases.
+
+## 18. Phase 0 Amendments (2026-10-05)
+
+Measured on a real iPhone + Mac; details in `docs/phase0-findings.md`. Decision: keep iCloud sync (§2), with these changes:
+
+- **Mac sync timing (§12).** The Mac app did not receive CloudKit pushes, even after `NSApplication.registerForRemoteNotifications()` succeeded; it imports within ~2 s of becoming active. The registration was removed with the probe: Phase 3 re-adds it, investigates the missing pushes, and makes opening the menu bar panel activate the app so it syncs. The Mac desktop widget has the same limit — it shows data as of the Mac app's last activation.
+- **iPhone background freshness (§10, §11).** iOS did not wake the suspended app for the CloudKit silent push. `NSPersistentCloudKitContainer` has no public "import now" API, so Phase 4 first verifies on a device whether a `BGAppRefreshTask` (requires the `fetch` background mode and `BGTaskSchedulerPermittedIdentifiers`) actually triggers an import and a widget reload. Fallback: the widget shows how old its data is, and the lag is accepted.
+- **App Intents on device (§8).** On the iPhone, Shortcuts did not list Scribe and the widget/Control intents wrote nothing; in the simulator the shortcut ran in the app process and wrote correctly. The extension-process write → app export path (§4.3) is untested everywhere — the only successful out-of-app write ran in the app process — so Phase 4 starts by verifying intent registration on the device and testing the widget/Control write path in the simulator and on the device.
+- **"Last synced" (§13).** Feasible: `NSPersistentCloudKitContainer.eventChangedNotification` reports setup/import/export under SwiftData.
+- **App Group (§4.2).** `group.com.noamchuri.scribe` works on macOS and iOS once registered in the developer portal; command-line automatic signing does not register App Groups.
+- **Deferred to Phase 4.** The Mac desktop widget reading the store (M7) and Control availability on macOS (§8, Q5).
+- **Open item.** Reset the CloudKit Development environment (removes the probe's `CD_ProbeNote` record type) before the first production schema deploy and before Phase 1 Task 10's record-type check.
