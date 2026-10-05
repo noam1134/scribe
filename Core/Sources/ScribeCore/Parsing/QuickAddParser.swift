@@ -4,7 +4,9 @@ import Foundation
 ///
 /// Only TRAILING tokens are recognized: the parser walks words from the end
 /// and stops at the first word it doesn't understand. "ארוחת שבת עם המשפחה"
-/// therefore keeps "שבת" in the title. Each token kind is used at most once.
+/// therefore keeps "שבת" in the title. Each token kind is used at most once,
+/// except that "tonight" / "הערב" may pair with one explicit time, so a draft
+/// can carry two `.time` tokens.
 public struct QuickAddParser: Sendable {
     public var calendar: Calendar
 

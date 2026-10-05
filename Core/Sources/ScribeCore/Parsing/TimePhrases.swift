@@ -16,6 +16,15 @@ enum TimePhrases {
     static let namedTimes: [String: TimeValue] = [
         "noon": TimeValue(minute: 12 * 60, pinsToday: false, isUnambiguous: true),
         "בצהריים": TimeValue(minute: 12 * 60, pinsToday: false, isUnambiguous: true),
+        "בצהרים": TimeValue(minute: 12 * 60, pinsToday: false, isUnambiguous: true),
+        "morning": TimeValue(minute: 9 * 60, pinsToday: false, isUnambiguous: true),
+        "this morning": TimeValue(minute: 9 * 60, pinsToday: false, isUnambiguous: true),
+        "in the morning": TimeValue(minute: 9 * 60, pinsToday: false, isUnambiguous: true),
+        "בבוקר": TimeValue(minute: 9 * 60, pinsToday: false, isUnambiguous: true),
+        "evening": TimeValue(minute: 19 * 60, pinsToday: false, isUnambiguous: true),
+        "this evening": TimeValue(minute: 19 * 60, pinsToday: false, isUnambiguous: true),
+        "in the evening": TimeValue(minute: 19 * 60, pinsToday: false, isUnambiguous: true),
+        "בערב": TimeValue(minute: 19 * 60, pinsToday: false, isUnambiguous: true),
         "tonight": TimeValue(minute: 20 * 60, pinsToday: true),
         "הערב": TimeValue(minute: 20 * 60, pinsToday: true),
     ]

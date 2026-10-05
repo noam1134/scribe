@@ -100,3 +100,32 @@ struct ParserTimeTests {
         #expect(draft.due == DueDate(day: F.day(10, 6), minute: 10 * 60))
     }
 }
+
+/// "Now" is Monday 2026-10-05 10:00 in Jerusalem.
+struct ParserDayPartTests {
+    typealias F = ParserFixture
+
+    static let dayPartCases: [(String, String, LocalDay, Int)] = [
+        ("call mom tomorrow morning", "call mom", F.day(10, 6), 9 * 60),
+        ("call mom morning", "call mom", F.day(10, 6), 9 * 60),           // 09:00 already passed → tomorrow
+        ("gym this evening", "gym", F.day(10, 5), 19 * 60),
+        ("gym evening", "gym", F.day(10, 5), 19 * 60),
+        ("gym in the evening", "gym", F.day(10, 5), 19 * 60),
+        ("run fri in the morning", "run", F.day(10, 9), 9 * 60),
+        ("להתקשר לאמא מחר בבוקר", "להתקשר לאמא", F.day(10, 6), 9 * 60),
+        ("חדר כושר בערב", "חדר כושר", F.day(10, 5), 19 * 60),
+        ("ארוחה בצהרים", "ארוחה", F.day(10, 5), 12 * 60),
+    ]
+
+    @Test(arguments: dayPartCases)
+    func dayPartsSetATime(text: String, title: String, day: LocalDay, minute: Int) {
+        let draft = F.parse(text)
+        #expect(draft.title == title)
+        #expect(draft.due == DueDate(day: day, minute: minute))
+    }
+
+    @Test func eveningAndTonightAreDifferent() {
+        #expect(F.parse("x הערב").due == DueDate(day: F.day(10, 5), minute: 20 * 60))
+        #expect(F.parse("x בערב").due == DueDate(day: F.day(10, 5), minute: 19 * 60))
+    }
+}
