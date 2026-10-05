@@ -1,6 +1,47 @@
 import ScribeCore
 import UserNotifications
 
+/// `UNUserNotificationCenter` behind the scheduler's `NotificationCenterClient`.
+@MainActor
+final class SystemNotificationCenter: NotificationCenterClient {
+    private var center: UNUserNotificationCenter { .current() }
+
+    func authorization() async -> NotificationPermission {
+        switch await center.notificationSettings().authorizationStatus {
+        case .notDetermined: .notDetermined
+        case .denied: .denied
+        default: .allowed // authorized, provisional, ephemeral
+        }
+    }
+
+    func requestAuthorization() async throws -> NotificationPermission {
+        _ = try await center.requestAuthorization(options: [.alert, .sound])
+        return await authorization()
+    }
+
+    func pending() async -> [NotificationDiff.Pending] {
+        await center.pendingNotificationRequests().map {
+            NotificationDiff.Pending(id: $0.identifier, fingerprint: $0.content.userInfo[PlannedNotification.UserInfoKey.fingerprint] as? String)
+        }
+    }
+
+    func add(_ request: PlannedNotification) async throws {
+        try await center.add(request.request)
+    }
+
+    func removePending(_ identifiers: [String]) {
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    func deliveredIdentifiers() async -> [String] {
+        await center.deliveredNotifications().map(\.request.identifier)
+    }
+
+    func removeDelivered(_ identifiers: [String]) {
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+}
+
 extension PlannedNotification {
     /// The request handed to the notification center. The calendar trigger
     /// has no time zone, so it fires at the item's wall-clock time wherever

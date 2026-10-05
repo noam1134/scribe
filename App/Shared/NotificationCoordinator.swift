@@ -9,55 +9,42 @@ import UIKit
 import AppKit
 #endif
 
-/// Whether the system lets Scribe show notifications (spec §13: when
-/// denied, the app works normally and Settings explains how to enable).
-enum NotificationPermission: Equatable {
-    /// Never asked. Scribe asks the first time there is something to
-    /// notify while the app is in front.
-    case notDetermined
-    /// Turned off in the system's Settings.
-    case denied
-    case allowed
-}
-
-/// Local notifications on iPhone and Mac (spec §11): keeps the pending
-/// requests equal to `NotificationPlanner`'s plan, and handles taps and the
-/// Done / +1 hour / Tomorrow buttons in the app process.
-///
-/// It re-plans after every store change — local writes, CloudKit imports and
-/// writes by other processes all bump the store, which this object observes —
-/// and on app activation, at midnight, on a time-zone change and when the
-/// settings change.
+/// Local notifications on iPhone and Mac (spec §11). The app's side of
+/// `NotificationScheduler` (Core), which decides and schedules: this object
+/// is the `UNUserNotificationCenterDelegate`, hands the scheduler the store
+/// once it's open, re-plans on activation, at midnight and on a time-zone
+/// change, and logs.
 ///
 /// For the Settings screen (Phase 6):
 /// - `settings` — bindable (`@Bindable var notifications = NotificationCoordinator.shared`,
 ///   then `$notifications.settings.isEnabled`, `.morningSummaryEnabled`,
 ///   `.morningSummaryMinute`). Saved per device and re-planned on change.
 /// - `permission` — `.denied` means "turned off in Settings": show
-///   `systemSettingsURL`. Refreshed on activation.
-/// - `requestPermission()` — for an explicit "Turn On" when `.notDetermined`.
+///   `systemSettingsURL`. Refreshed on every pass (activation included).
+/// - `requestPermission()` — for an explicit "Turn On" (call it when the
+///   switch is turned on).
+///
+/// For background work (refresh task, intents run in the app process):
+/// `rescheduleNow()` opens the store if needed and returns when done.
 @MainActor
 @Observable
 final class NotificationCoordinator: NSObject {
     static let shared = NotificationCoordinator()
 
-    /// Per-device preferences, stored in `UserDefaults.standard` (never synced).
+    /// Per-device preferences in the App Group's defaults (never synced).
     var settings: NotificationSettings {
-        didSet {
-            guard settings != oldValue else { return }
-            settings.save(to: .standard)
-            setNeedsReschedule()
-        }
+        get { scheduler.settings }
+        set { scheduler.settings = newValue }
     }
 
-    private(set) var permission: NotificationPermission = .notDetermined
+    var permission: NotificationPermission { scheduler.permission }
 
-    /// Where the system keeps Scribe's notification switches.
+    /// Scribe's own page in the system's notification settings.
     static var systemSettingsURL: URL? {
         #if os(iOS)
         URL(string: UIApplication.openNotificationSettingsURLString)
         #else
-        URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+        URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(Bundle.main.bundleIdentifier ?? "com.noamchuri.scribe")")
         #endif
     }
 
@@ -67,24 +54,28 @@ final class NotificationCoordinator: NSObject {
         !StoreLoader.isUITesting || CommandLine.arguments.contains("-enableNotifications")
     }
 
-    @ObservationIgnored private weak var loader: StoreLoader?
-    @ObservationIgnored private var store: SwiftDataItemStore?
-    /// The reschedule waiting to run; later requests fold into it.
-    @ObservationIgnored private var queued: Task<Void, Never>?
-    /// The most recent reschedule; the next one waits for it, so they never overlap.
-    @ObservationIgnored private var latest: Task<Void, Never>?
+    @ObservationIgnored private let scheduler: NotificationScheduler
+    @ObservationIgnored private let link: LoaderLink
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private let log = Logger(subsystem: "com.noamchuri.scribe", category: "notifications")
 
     private override init() {
-        settings = NotificationSettings(from: .standard)
+        let link = LoaderLink()
+        self.link = link
+        scheduler = NotificationScheduler(
+            center: SystemNotificationCenter(),
+            defaults: NotificationSettings.appGroupDefaults,
+            openStore: { link.openStore() },
+            mayAskForPermission: { Self.isAppActive }
+        )
         super.init()
+        scheduler.onEvent = { [log] event in Self.log(event, to: log) }
     }
 
     /// Call from `App.init`: the delegate must be set before launch finishes,
     /// or a tap that launches the app is lost.
     func install(loader: StoreLoader) {
-        self.loader = loader
+        link.loader = loader
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         center.setNotificationCategories(NotificationCategory.registered)
@@ -93,15 +84,21 @@ final class NotificationCoordinator: NSObject {
         watch(loader)
     }
 
-    /// Asks the system for permission, then re-plans.
     func requestPermission() async {
-        await askForPermission()
-        setNeedsReschedule(after: .zero)
+        await scheduler.requestPermission()
     }
 
-    // MARK: Store
+    /// Re-plans now, opening the store first if nothing has, and returns when
+    /// the pending requests are up to date — for work that must finish
+    /// before the app is suspended.
+    func rescheduleNow() async {
+        guard Self.isActiveInThisRun else { return }
+        await scheduler.rescheduleNow()
+    }
 
-    /// Starts once the loader has a store (also after Retry).
+    // MARK: Store and system events
+
+    /// Hands over the store once the loader has one (also after Retry).
     private func watch(_ loader: StoreLoader) {
         let state = withObservationTracking { loader.state } onChange: { [weak self, weak loader] in
             Task { @MainActor in
@@ -109,23 +106,7 @@ final class NotificationCoordinator: NSObject {
                 self.watch(loader)
             }
         }
-        if case .ready(let store) = state { start(store) }
-    }
-
-    private func start(_ store: SwiftDataItemStore) {
-        guard self.store !== store else { return }
-        self.store = store
-        setNeedsReschedule(after: .zero)
-    }
-
-    /// The store, opening it if the app was launched in the background just
-    /// to handle a notification button (no window, so nothing opened it).
-    private func openStore() -> SwiftDataItemStore? {
-        guard let loader else { return nil }
-        if case .loading = loader.state { loader.load() }
-        guard case .ready(let store) = loader.state else { return nil }
-        start(store)
-        return store
+        if case .ready(let store) = state { scheduler.attach(store) }
     }
 
     private func observeSystemEvents() {
@@ -138,93 +119,12 @@ final class NotificationCoordinator: NSObject {
         // seven-day summary window moves with the clock.
         for name in [didBecomeActive, .NSCalendarDayChanged, .NSSystemTimeZoneDidChange] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.setNeedsReschedule() }
+                MainActor.assumeIsolated { self?.scheduler.setNeedsReschedule() }
             })
         }
     }
 
-    // MARK: Scheduling
-
-    /// Coalesces bursts (a save also posts a remote-change notice, which
-    /// refreshes the store again) into one pass.
-    private func setNeedsReschedule(after delay: Duration = .milliseconds(300)) {
-        guard Self.isActiveInThisRun, store != nil, queued == nil else { return }
-        let previous = latest
-        let task = Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            await previous?.value
-            await self?.reschedule()
-        }
-        queued = task
-        latest = task
-    }
-
-    /// Re-plans now and returns when the pending requests are up to date —
-    /// for work that must finish before the app is suspended (a notification
-    /// button, a background refresh task).
-    func rescheduleNow() async {
-        setNeedsReschedule(after: .zero)
-        await latest?.value
-    }
-
-    private func reschedule() async {
-        queued = nil
-        guard let store else { return }
-        // Reading inside the tracking block subscribes to the store: the next
-        // write or refresh calls back here.
-        let (items, categories) = withObservationTracking {
-            (store.items(.all), store.categories)
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.setNeedsReschedule() }
-        }
-        let planned = NotificationPlanner().plan(items: items, categories: categories, settings: settings, now: Date())
-
-        await refreshPermission()
-        if permission == .notDetermined, !planned.isEmpty, isAppActive {
-            await askForPermission()
-        }
-        let wanted = permission == .allowed ? planned : []
-
-        let center = UNUserNotificationCenter.current()
-        let pending = await center.pendingNotificationRequests().map {
-            NotificationDiff.Pending(id: $0.identifier, fingerprint: $0.content.userInfo[PlannedNotification.UserInfoKey.fingerprint] as? String)
-        }
-        let diff = NotificationDiff(pending: pending, planned: wanted)
-        if !diff.remove.isEmpty {
-            center.removePendingNotificationRequests(withIdentifiers: diff.remove)
-        }
-        for planned in diff.add {
-            do {
-                try await center.add(planned.request)
-            } catch {
-                log.error("Couldn’t schedule \(planned.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
-        }
-        await removeDeliveredAlertsOfClosedItems(store)
-
-        log.notice("Notifications: \(wanted.count, privacy: .public) planned, +\(diff.add.count, privacy: .public) −\(diff.remove.count, privacy: .public), permission \(String(describing: self.permission), privacy: .public)")
-        #if DEBUG
-        log.notice("Pending: \(wanted.map(\.id).joined(separator: ", "), privacy: .public)")
-        #endif
-    }
-
-    /// An alert still in Notification Center for an item that has since been
-    /// completed or deleted (here or on another device) is cleared.
-    private func removeDeliveredAlertsOfClosedItems(_ store: SwiftDataItemStore) async {
-        let center = UNUserNotificationCenter.current()
-        let delivered = await center.deliveredNotifications().map(\.request.identifier)
-        let closed = delivered.filter { identifier in
-            guard let itemID = PlannedNotification.itemID(fromIdentifier: identifier) else { return false }
-            return store.item(itemID)?.isDone ?? true
-        }
-        if !closed.isEmpty {
-            center.removeDeliveredNotifications(withIdentifiers: closed)
-        }
-    }
-
-    // MARK: Permission
-
-    private var isAppActive: Bool {
+    private static var isAppActive: Bool {
         #if os(iOS)
         UIApplication.shared.applicationState == .active
         #else
@@ -232,41 +132,55 @@ final class NotificationCoordinator: NSObject {
         #endif
     }
 
-    private func askForPermission() async {
-        do {
-            _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
-        } catch {
-            log.error("Permission request failed: \(error.localizedDescription, privacy: .public)")
-        }
-        await refreshPermission()
-    }
-
-    private func refreshPermission() async {
-        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        permission = switch status {
-        case .notDetermined: .notDetermined
-        case .denied: .denied
-        default: .allowed // authorized, provisional, ephemeral
-        }
-    }
-
     // MARK: Responses
 
     private func handle(actionIdentifier: String, link: DeepLink?, itemID: UUID?) async {
         if let action = NotificationAction(rawValue: actionIdentifier) {
-            guard let itemID, let store = openStore() else { return }
-            do {
-                try action.perform(itemID: itemID, store: store, now: Date(), calendar: .autoupdatingCurrent)
-            } catch {
-                log.error("\(action.rawValue, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            guard let itemID else {
+                log.error("\(action.rawValue, privacy: .public) arrived without an item")
+                return
             }
-            // Finish before returning: the system may suspend the app as soon
-            // as the response is handled.
-            await rescheduleNow()
+            await scheduler.perform(action, itemID: itemID)
         } else if actionIdentifier == UNNotificationDefaultActionIdentifier, let link {
             // Routed like any scribe:// link (the item, or Upcoming for the summary).
-            loader?.pendingLink = link
+            self.link.loader?.pendingLink = link
         }
+    }
+
+    // MARK: Log
+
+    private static func log(_ event: NotificationScheduler.Event, to log: Logger) {
+        switch event {
+        case let .rescheduled(planned, added, removed, permission):
+            log.notice("Notifications: \(planned.count, privacy: .public) planned, +\(added, privacy: .public) −\(removed, privacy: .public), permission \(String(describing: permission), privacy: .public)")
+            #if DEBUG
+            log.notice("Pending: \(planned.joined(separator: ", "), privacy: .public)")
+            #endif
+        case let .schedulingFailed(id, message):
+            log.error("Couldn’t schedule \(id, privacy: .public): \(message, privacy: .public)")
+        case let .permissionRequestFailed(message):
+            log.error("Permission request failed: \(message, privacy: .public)")
+        case let .actionFailed(action, itemID, message):
+            log.error("\(action.rawValue, privacy: .public) on \(itemID, privacy: .public) failed: \(message, privacy: .public)")
+        case let .actionDropped(action, itemID):
+            log.error("\(action.rawValue, privacy: .public) on \(itemID, privacy: .public) dropped: the store couldn’t be opened")
+        case .storeUnavailable:
+            log.error("Couldn’t re-plan notifications: the store couldn’t be opened")
+        }
+    }
+}
+
+/// The loader, for opening the one store in a background launch (a
+/// notification button or a refresh task, with no window to open it).
+@MainActor
+private final class LoaderLink {
+    weak var loader: StoreLoader?
+
+    func openStore() -> (any ItemStore)? {
+        guard let loader else { return nil }
+        if case .loading = loader.state { loader.load() }
+        guard case .ready(let store) = loader.state else { return nil }
+        return store
     }
 }
 
