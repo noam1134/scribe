@@ -49,6 +49,24 @@ struct NotificationSettingsTests {
         #expect(NotificationSettings(from: defaults, fallback: .iOSDefault).morningSummaryMinute == 540)
     }
 
+    /// Launch arguments such as `-notifications.morningSummaryMinute 450`
+    /// reach `UserDefaults` as strings.
+    @Test func stringValuesFromLaunchArgumentsAreRead() {
+        let defaults = freshDefaults()
+        defaults.set("450", forKey: NotificationSettings.Keys.morningSummaryMinute)
+        defaults.set("NO", forKey: NotificationSettings.Keys.isEnabled)
+        let loaded = NotificationSettings(from: defaults, fallback: .iOSDefault)
+        #expect(loaded == NotificationSettings(isEnabled: false, morningSummaryEnabled: true, morningSummaryMinute: 450))
+    }
+
+    @Test func unreadableValuesFallBack() {
+        let defaults = freshDefaults()
+        defaults.set("soon", forKey: NotificationSettings.Keys.morningSummaryMinute)
+        defaults.set("maybe", forKey: NotificationSettings.Keys.morningSummaryEnabled)
+        defaults.set(Date(), forKey: NotificationSettings.Keys.isEnabled)
+        #expect(NotificationSettings(from: defaults, fallback: .iOSDefault) == .iOSDefault)
+    }
+
     @Test func midnightIsAValidSummaryTime() {
         let defaults = freshDefaults()
         defaults.set(0, forKey: NotificationSettings.Keys.morningSummaryMinute)

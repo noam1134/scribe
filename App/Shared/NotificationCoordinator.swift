@@ -46,7 +46,7 @@ final class NotificationCoordinator: NSObject {
         didSet {
             guard settings != oldValue else { return }
             settings.save(to: .standard)
-            setNeedsReschedule(after: .zero)
+            setNeedsReschedule()
         }
     }
 

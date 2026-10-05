@@ -2,8 +2,10 @@ import XCTest
 
 /// Real notifications on the simulator (spec §11): a due-time alert fires,
 /// its Done button completes the task while the app is in the background,
-/// and tapping an alert opens its item. Slow — it waits for the clock — so
-/// it takes about four minutes. The first run answers the permission alert.
+/// tapping an alert opens its item, and the morning summary (moved to five
+/// minutes after launch) counts what is left and opens Upcoming. Slow — it
+/// waits for the clock, about five minutes. The first run answers the
+/// permission alert. (Breaks if run in the minutes before midnight.)
 @MainActor
 final class NotificationUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -12,11 +14,18 @@ final class NotificationUITests: XCTestCase {
     override func setUp() async throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-enableNotifications"]
+        // A minute clear of both alerts, which are due 2 and 3 minutes after they're added.
+        let summary = Calendar.current.dateComponents([.hour, .minute], from: Date().addingTimeInterval(5 * 60))
+        app.launchArguments = [
+            "-uiTesting", "-enableNotifications",
+            "-notifications.enabled", "YES",
+            "-notifications.morningSummary", "YES",
+            "-notifications.morningSummaryMinute", "\(summary.hour! * 60 + summary.minute!)",
+        ]
         app.launch()
     }
 
-    func testDueTimeAlertDoneButtonAndTap() {
+    func testAlertsAndMorningSummary() {
         let suffix = String((0..<4).map { _ in "abcdefghjkmnpqrstuvwxyz".randomElement()! })
         let doneTitle = "Ping done \(suffix)"
         let openTitle = "Ping open \(suffix)"
@@ -46,6 +55,14 @@ final class NotificationUITests: XCTestCase {
         let title = app.textFields["titleField"]
         XCTAssertTrue(title.waitForExistence(timeout: 10), "the item should open in its category")
         XCTAssertEqual(title.value as? String, openTitle)
+
+        // The summary lists today's open items (the done one is gone) and opens Upcoming.
+        let summary = banner(containing: "Today: 1")
+        XCTAssertTrue(summary.waitForExistence(timeout: 150), "the morning summary should fire five minutes after launch")
+        XCTAssertTrue(summary.label.contains(openTitle))
+        XCTAssertFalse(summary.label.contains(doneTitle))
+        summary.tap()
+        XCTAssertTrue(app.navigationBars["Upcoming"].waitForExistence(timeout: 10))
     }
 
     // MARK: Helpers
@@ -61,7 +78,7 @@ final class NotificationUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5), "composer should close after adding")
     }
 
-    /// "HH:MM" on the device clock. (Breaks if run in the minutes before midnight.)
+    /// "HH:MM" on the device clock.
     private func clock(minutesFromNow minutes: Int) -> String {
         let parts = Calendar.current.dateComponents([.hour, .minute], from: Date().addingTimeInterval(TimeInterval(minutes * 60)))
         return String(format: "%02d:%02d", parts.hour!, parts.minute!)

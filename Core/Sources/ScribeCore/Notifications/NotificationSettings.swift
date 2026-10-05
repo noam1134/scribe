@@ -35,12 +35,28 @@ public struct NotificationSettings: Equatable, Sendable {
     }
 
     /// Reads each value on its own; a missing or invalid one takes `fallback`'s.
+    /// Values may also come from launch arguments
+    /// (`-notifications.morningSummaryMinute 450`), which arrive as strings.
     public init(from defaults: UserDefaults, fallback: NotificationSettings = .platformDefault) {
-        let minute = (defaults.object(forKey: Keys.morningSummaryMinute) as? Int).flatMap { (0..<1440).contains($0) ? $0 : nil }
+        func bool(_ key: String) -> Bool? {
+            switch defaults.object(forKey: key) {
+            case let value as Bool: value
+            case let text as String: ["yes", "true", "1"].contains(text.lowercased()) ? true : ["no", "false", "0"].contains(text.lowercased()) ? false : nil
+            default: nil
+            }
+        }
+        func minute(_ key: String) -> Int? {
+            let value: Int? = switch defaults.object(forKey: key) {
+            case let number as Int: number
+            case let text as String: Int(text)
+            default: nil
+            }
+            return value.flatMap { (0..<1440).contains($0) ? $0 : nil }
+        }
         self.init(
-            isEnabled: defaults.object(forKey: Keys.isEnabled) as? Bool ?? fallback.isEnabled,
-            morningSummaryEnabled: defaults.object(forKey: Keys.morningSummaryEnabled) as? Bool ?? fallback.morningSummaryEnabled,
-            morningSummaryMinute: minute ?? fallback.morningSummaryMinute
+            isEnabled: bool(Keys.isEnabled) ?? fallback.isEnabled,
+            morningSummaryEnabled: bool(Keys.morningSummaryEnabled) ?? fallback.morningSummaryEnabled,
+            morningSummaryMinute: minute(Keys.morningSummaryMinute) ?? fallback.morningSummaryMinute
         )
     }
 
