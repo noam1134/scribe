@@ -13,6 +13,9 @@ struct QuickAddSheet: View {
 
     @State private var composer: QuickAddComposer
     @State private var detent = QuickAddSheet.compact
+    /// Notes was focused: the sheet may be large from now on. Not before —
+    /// with a large detent on offer, the keyboard alone makes the sheet large.
+    @State private var canGrow = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
     @FocusState private var focus: Field?
@@ -69,11 +72,13 @@ struct QuickAddSheet: View {
         }
         .padding(20)
         .frame(maxHeight: .infinity, alignment: .top)
-        .presentationDetents([Self.compact, .large], selection: $detent)
+        .presentationDetents(canGrow ? [Self.compact, .large] : [Self.compact], selection: $detent)
         .presentationDragIndicator(.visible)
         .onAppear { focus = .title }
         .onChange(of: focus) { _, field in
-            if field == .notes { withAnimation(.snappy) { detent = .large } }
+            guard field == .notes else { return }
+            canGrow = true
+            withAnimation(.snappy) { detent = .large }
         }
         .saveErrorAlert(router)
     }

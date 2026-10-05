@@ -139,12 +139,13 @@ struct ListsView: View {
                 Button { editingCategoryID = category.id } label: {
                     HStack(spacing: 10) {
                         Circle().fill(category.color).frame(width: 10, height: 10)
+                        // Colors, not `.primary`: in a button that is the tint.
                         Text(category.displayName)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.primary)
                         Spacer()
                         if category.openCount > 0 {
                             Text(category.openCount, format: .number)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.secondary)
                                 .monospacedDigit()
                         }
                     }
