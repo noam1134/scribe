@@ -19,7 +19,7 @@ open Scribe.xcodeproj
 ### Tests
 
 ```bash
-cd Core && swift test                      # Core unit tests
+(cd Core && swift test)                    # Core unit tests
 xcodebuild -project Scribe.xcodeproj -scheme Scribe \
   -destination "platform=iOS Simulator,name=iPhone 17 Pro" test   # UI smoke tests
 ```
