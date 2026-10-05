@@ -24,6 +24,7 @@ struct QuickAddChipRow: View {
                 }
             }
             .scrollClipDisabled() // clipping draws a grey band behind the glass chips
+            .fixedSize(horizontal: false, vertical: true) // as tall as the chips, so its box contains them
         } else {
             Text("Try \u{201C}call mom tomorrow 9am #family\u{201D}")
                 .font(.footnote)
@@ -78,6 +79,7 @@ struct QuickAddCategoryRow: View {
                 }
             }
             .scrollClipDisabled()
+            .fixedSize(horizontal: false, vertical: true) // as tall as the chips, so its box contains them
             if live.categories.isEmpty && live.unknownCategoryName == nil {
                 hint("Type #name to create a category")
             } else if live.draft.isValid && live.categoryID == nil {

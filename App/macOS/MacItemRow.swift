@@ -2,8 +2,9 @@ import ScribeCore
 import SwiftUI
 
 /// One item: checkbox (tasks) or note glyph (memos), the title in its own
-/// text direction, and the due/category line — or, while it is expanded,
-/// the inline editor in the title's place (Things-style, spec §9.3).
+/// text direction, and its details — the due/category line and the notes —
+/// shown until a click hides them; a click shows them again, a double-click
+/// opens the inline editor in the title's place (Things-style, spec §9.3).
 struct MacItemRow: View {
     let store: any ItemStore
     let item: ItemSnapshot
@@ -41,11 +42,31 @@ struct MacItemRow: View {
                         .foregroundStyle(item.isDone ? .secondary : .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .layoutDirection(of: item.title)
-                    if let subtitle = item.subtitle(category: category, showsDay: showsDay, showsCategory: showsCategory) {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    if router.showsDetails(of: item.id) {
+                        if let subtitle = item.subtitle(category: category, showsDay: showsDay, showsCategory: showsCategory) {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if !item.body.isEmpty {
+                            Text(item.body)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(6)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .layoutDirection(of: item.body)
+                                .padding(.top, 2)
+                        }
                     }
+                }
+                .contentShape(.rect)
+                // The list never passes a row's clicks on to a gesture
+                // that runs alongside its own, so the text takes both
+                // clicks itself and selects the row as the list would.
+                .onTapGesture(count: 2) { router.edit(item.id) }
+                .onTapGesture {
+                    router.selectedItemID = item.id
+                    withAnimation(.snappy) { router.toggleDetails(of: item.id) }
                 }
             }
         }

@@ -36,6 +36,9 @@ final class MacRouter {
     var expandedItemID: UUID? { editing.itemID }
     /// Whether the category list's Done group is open.
     var showsDone = false
+    /// Rows whose details (date line, notes) were hidden with a click;
+    /// every row shows its details until then.
+    private(set) var collapsedDetails: Set<UUID> = []
     var searchText = "" {
         didSet {
             // A new query reloads the list: an open editor would be rebuilt
@@ -151,6 +154,15 @@ final class MacRouter {
     func edit(_ id: UUID) {
         selectedItemID = id
         editing.open(id)
+    }
+
+    func showsDetails(of id: UUID) -> Bool {
+        !collapsedDetails.contains(id)
+    }
+
+    /// A single click on a row's text shows or hides its details.
+    func toggleDetails(of id: UUID) {
+        if collapsedDetails.remove(id) == nil { collapsedDetails.insert(id) }
     }
 
     /// Asked by the editor when it appears: true once per `edit(_:)`.
