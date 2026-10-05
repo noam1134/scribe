@@ -106,7 +106,7 @@ final class SyncMonitor {
         account = state
         self.identity = state == .available ? identity : nil
         if log.accountChecked(previous: previous, current: state, identity: self.identity) {
-            logger.info("Sync log started over for this iCloud account")
+            logger.info("Sync log matched to the iCloud account (a different one starts it over)")
             save()
         }
     }
