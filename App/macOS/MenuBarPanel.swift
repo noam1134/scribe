@@ -29,6 +29,15 @@ private struct MenuBarLabel: View {
         Image(systemName: "checklist")
             .accessibilityLabel("Scribe")
             .onAppear { MacWindows.openWindow = openWindow }
+            .onChange(of: IntentLinkInbox.shared.link) { _, link in
+                // An intent that brought the app forward (the Control, the
+                // small widget's "+"): only a main window's root takes these,
+                // so with every window closed the link would wait forever.
+                // At launch the first window's root takes it instead.
+                guard let link else { return }
+                IntentLinkInbox.shared.link = nil
+                loader.pendingLink = link
+            }
             .onChange(of: loader.pendingLink) { _, link in
                 guard link != nil, !MacWindows.hasMainWindow else { return }
                 MacWindows.showMain()
