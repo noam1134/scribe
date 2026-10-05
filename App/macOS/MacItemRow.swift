@@ -22,7 +22,15 @@ struct MacItemRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             marker
             if router.expandedItemID == item.id {
-                ItemEditor(store: store, item: item, categories: categories, perform: router.perform) {
+                ItemEditor(
+                    store: store,
+                    item: item,
+                    categories: categories,
+                    perform: router.perform,
+                    // Through the window's undo, so ⌘Z after a chip undoes it.
+                    save: { id, actionName, edit in try router.undoable.update(id, actionName: actionName, edit) },
+                    takeTitleFocus: { router.takeTitleFocus(for: item.id) }
+                ) {
                     router.closeEditor()
                 }
                 .padding(.vertical, 4)
@@ -73,10 +81,7 @@ struct MacItemMenu: View {
     @Environment(MacRouter.self) private var router
 
     var body: some View {
-        Button("Edit") {
-            router.selectedItemID = item.id
-            router.expandedItemID = item.id
-        }
+        Button("Edit") { router.edit(item.id) }
         if item.kind == .task {
             Button(item.isDone ? "Mark as Not Done" : "Mark as Done") { router.setDone(item, !item.isDone) }
         }

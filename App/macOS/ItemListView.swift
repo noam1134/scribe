@@ -15,53 +15,64 @@ struct ItemListView: View {
         @Bindable var router = router
         let categories = store.categories
         let content = ListContent.make(router: router, store: store, categories: categories)
-        List(selection: $router.selectedItemID) {
-            ForEach(content.sections) { section in
-                Section {
-                    rows(section.items, section: section, categories: categories)
-                } header: {
-                    if let title = section.title {
-                        Text(title).foregroundStyle(section.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+        ScrollViewReader { proxy in
+            List(selection: $router.selectedItemID) {
+                ForEach(content.sections) { section in
+                    Section {
+                        rows(section.items, section: section, categories: categories)
+                    } header: {
+                        if let title = section.title {
+                            Text(title).foregroundStyle(section.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        }
+                    }
+                }
+                if !content.done.isEmpty {
+                    Section {
+                        DisclosureGroup("Done (\(content.done.count))", isExpanded: $router.showsDone) {
+                            rows(content.done, section: nil, categories: categories)
+                        }
                     }
                 }
             }
-            if !content.done.isEmpty {
-                Section {
-                    DisclosureGroup("Done (\(content.done.count))", isExpanded: $router.showsDone) {
-                        rows(content.done, section: nil, categories: categories)
-                    }
+            .listStyle(.inset)
+            // A new list per sidebar entry or query: swapping every section of
+            // one list for another set makes AppKit warn about a reentrant table
+            // update ("…will become an assert"); small changes diff fine.
+            .id(content.identity)
+            .focused(focus, equals: .list)
+            .onKeyPress(.space) { router.run(.toggleDone) ? .handled : .ignored }
+            .onKeyPress(.return) { router.run(.edit) ? .handled : .ignored }
+            .onDeleteCommand { router.run(.delete) }
+            .contextMenu(forSelectionType: UUID.self) { ids in
+                if let id = ids.first, let item = store.item(id) {
+                    MacItemMenu(item: item, categories: categories)
+                }
+            } primaryAction: { ids in
+                if let id = ids.first { router.edit(id) }
+            }
+            .onChange(of: content.visibleIDs, initial: true) { old, new in
+                router.visibleItemIDs = new
+                // The selected row left the list (deleted, completed out of the
+                // agenda, moved): select its neighbour so the keyboard keeps going.
+                guard let selected = router.selectedItemID, !new.contains(selected) else { return }
+                let next = ListSelection.afterRemoving(selected, from: old)
+                router.selectedItemID = next.flatMap { new.contains($0) ? $0 : nil }
+            }
+            .overlay {
+                if let empty = content.empty {
+                    ContentUnavailableView(empty.title, systemImage: empty.symbol, description: empty.description.map(Text.init))
                 }
             }
-        }
-        .listStyle(.inset)
-        // A new list per sidebar entry or query: swapping every section of
-        // one list for another set makes AppKit warn about a reentrant table
-        // update ("…will become an assert"); small changes diff fine.
-        .id(content.identity)
-        .focused(focus, equals: .list)
-        .onKeyPress(.space) { router.run(.toggleDone) ? .handled : .ignored }
-        .onKeyPress(.return) { router.run(.edit) ? .handled : .ignored }
-        .onDeleteCommand { router.run(.delete) }
-        .contextMenu(forSelectionType: UUID.self) { ids in
-            if let id = ids.first, let item = store.item(id) {
-                MacItemMenu(item: item, categories: categories)
-            }
-        } primaryAction: { ids in
-            guard let id = ids.first else { return }
-            router.selectedItemID = id
-            router.expandedItemID = id
-        }
-        .onChange(of: content.visibleIDs, initial: true) { old, new in
-            router.visibleItemIDs = new
-            // The selected row left the list (deleted, completed out of the
-            // agenda, moved): select its neighbour so the keyboard keeps going.
-            guard let selected = router.selectedItemID, !new.contains(selected) else { return }
-            let next = ListSelection.afterRemoving(selected, from: old)
-            router.selectedItemID = next.flatMap { new.contains($0) ? $0 : nil }
-        }
-        .overlay {
-            if let empty = content.empty {
-                ContentUnavailableView(empty.title, systemImage: empty.symbol, description: empty.description.map(Text.init))
+            .task(id: router.scrollTarget) {
+                guard let target = router.scrollTarget else { return }
+                // A link that switched lists has just replaced this list:
+                // scroll once its rows exist, and again once the opened
+                // editor has grown its row.
+                await Task.yield()
+                proxy.scrollTo(target, anchor: .center)
+                try? await Task.sleep(for: .milliseconds(150))
+                proxy.scrollTo(target, anchor: .center)
+                router.scrollTarget = nil
             }
         }
         .navigationTitle(content.title)

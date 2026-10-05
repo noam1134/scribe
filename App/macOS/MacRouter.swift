@@ -18,7 +18,7 @@ final class MacRouter {
         didSet {
             guard sidebar != oldValue else { return }
             selectedItemID = nil
-            expandedItemID = nil
+            editing.close()
             showsDone = false
             searchText = ""
         }
@@ -27,15 +27,24 @@ final class MacRouter {
     var selectedItemID: UUID? {
         didSet {
             // Selecting another row closes the one being edited.
-            if let expandedItemID, expandedItemID != selectedItemID { self.expandedItemID = nil }
+            editing.selectionChanged(to: selectedItemID)
         }
     }
 
-    /// The row showing its inline editor; one at a time.
-    var expandedItemID: UUID?
+    /// The row showing its inline editor, and its one-time title focus.
+    private(set) var editing = InlineEditing()
+    var expandedItemID: UUID? { editing.itemID }
     /// Whether the category list's Done group is open.
     var showsDone = false
-    var searchText = ""
+    var searchText = "" {
+        didSet {
+            // A new query reloads the list: an open editor would be rebuilt
+            // under the user's typing.
+            if searchText != oldValue { editing.close() }
+        }
+    }
+    /// A row the list should scroll to (a link opened it); the list clears it.
+    var scrollTarget: UUID?
     var alertMessage: String?
     /// Where the root should move keyboard focus next; it clears this.
     var focusRequest: Focus?
@@ -84,13 +93,14 @@ final class MacRouter {
         case .startQuickAdd:
             focusRequest = .quickAdd
         case .focusSearch:
+            editing.close()
             focusRequest = .search
         case .show(let entry):
             sidebar = entry
             searchText = ""
             focusRequest = .list
         case .edit(let id):
-            expandedItemID = id
+            edit(id)
         case .setDone(let id, let done):
             if let item = store.item(id) { setDone(item, done) }
         case .delete(let item):
@@ -129,7 +139,7 @@ final class MacRouter {
     func delete(_ item: ItemSnapshot) {
         perform {
             try undoable.deleteItem(item)
-            if expandedItemID == item.id { expandedItemID = nil }
+            editing.close(item.id)
         }
     }
 
@@ -137,8 +147,19 @@ final class MacRouter {
         perform { try undoable.update(item.id, actionName: actionName, edit) }
     }
 
+    /// Selects the row and opens its inline editor, title focused.
+    func edit(_ id: UUID) {
+        selectedItemID = id
+        editing.open(id)
+    }
+
+    /// Asked by the editor when it appears: true once per `edit(_:)`.
+    func takeTitleFocus(for id: UUID) -> Bool {
+        editing.takeTitleFocus(for: id)
+    }
+
     func closeEditor() {
-        expandedItemID = nil
+        editing.close()
         focusRequest = .list
     }
 
@@ -158,8 +179,8 @@ final class MacRouter {
             guard let item = store.item(id) else { return }
             sidebar = item.categoryID.map(SidebarEntry.category) ?? .inbox
             showsDone = item.isDone
-            selectedItemID = id
-            expandedItemID = id
+            edit(id)
+            scrollTarget = id
         }
     }
 }
