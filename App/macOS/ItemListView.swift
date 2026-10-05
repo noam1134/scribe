@@ -34,6 +34,10 @@ struct ItemListView: View {
             }
         }
         .listStyle(.inset)
+        // A new list per sidebar entry or query: swapping every section of
+        // one list for another set makes AppKit warn about a reentrant table
+        // update ("…will become an assert"); small changes diff fine.
+        .id(content.identity)
         .focused(focus, equals: .list)
         .onKeyPress(.space) { router.run(.toggleDone) ? .handled : .ignored }
         .onKeyPress(.return) { router.run(.edit) ? .handled : .ignored }
@@ -94,6 +98,8 @@ private struct ListContent {
     }
 
     var title: String
+    /// What the list is showing: a sidebar entry, or a search.
+    var identity: AnyHashable
     var sections: [Section] = []
     /// Done tasks of a category or the Inbox, in a collapsed group.
     var done: [ItemSnapshot] = []
@@ -114,10 +120,10 @@ private struct ListContent {
         case .upcoming:
             return upcoming(store: store)
         case .inbox:
-            return list("Inbox", items: store.items(.inbox), showsDone: router.showsDone)
+            return list("Inbox", identity: .inbox, items: store.items(.inbox), showsDone: router.showsDone)
         case .category(let id):
             let name = categories.first { $0.id == id }?.displayName ?? "Category"
-            return list(name, items: store.items(.category(id)), showsDone: router.showsDone)
+            return list(name, identity: .category(id), items: store.items(.category(id)), showsDone: router.showsDone)
         }
     }
 
@@ -127,7 +133,7 @@ private struct ListContent {
         let agenda = store.agenda(.all, now: now)
         let labels = DueLabels()
         let today = LocalDay(now, calendar: labels.calendar)
-        var content = ListContent(title: "Upcoming")
+        var content = ListContent(title: "Upcoming", identity: SidebarEntry.upcoming)
         if !agenda.overdue.isEmpty {
             content.sections.append(Section(id: "overdue", title: "Overdue", isOverdue: true, items: agenda.overdue, showsCategory: true))
         }
@@ -140,9 +146,9 @@ private struct ListContent {
         return content
     }
 
-    private static func list(_ title: String, items: [ItemSnapshot], showsDone: Bool) -> ListContent {
+    private static func list(_ title: String, identity: SidebarEntry, items: [ItemSnapshot], showsDone: Bool) -> ListContent {
         let contents = CategoryContents(items: items)
-        var content = ListContent(title: title, done: contents.done, showsDone: showsDone)
+        var content = ListContent(title: title, identity: identity, done: contents.done, showsDone: showsDone)
         if !contents.openTasks.isEmpty {
             content.sections.append(Section(id: "tasks", title: nil, items: contents.openTasks))
         }
@@ -158,7 +164,7 @@ private struct ListContent {
     @MainActor
     private static func search(_ query: String, store: any ItemStore, categories: [CategorySnapshot]) -> ListContent {
         let groups = SearchGroup.make(items: store.items(.search(query)), categories: categories)
-        var content = ListContent(title: "Search")
+        var content = ListContent(title: "Search", identity: "search: \(query)")
         content.sections = groups.map { group in
             Section(id: group.id, title: group.category?.displayName ?? "Inbox", items: group.items)
         }
