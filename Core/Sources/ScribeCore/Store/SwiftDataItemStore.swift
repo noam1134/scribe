@@ -176,9 +176,52 @@ public final class SwiftDataItemStore: ItemStore {
         try save(context)
     }
 
-    public func deleteCategory(_ id: UUID) throws {
+    public func moveCategories(fromOffsets source: IndexSet, toOffset destination: Int) throws {
         let context = ModelContext(container)
-        context.delete(try categoryModel(id, in: context))
+        var ordered = fetchCategories(context)
+        let moving = source.filter { ordered.indices.contains($0) }.map { ordered[$0] }
+        guard !moving.isEmpty else { return }
+        let insertAt = destination - source.filter { $0 < destination }.count
+        ordered.removeAll { category in moving.contains { $0 === category } }
+        ordered.insert(contentsOf: moving, at: min(max(insertAt, 0), ordered.count))
+        for (position, category) in ordered.enumerated() where category.sortIndex != Double(position) {
+            category.sortIndex = Double(position)
+        }
+        try save(context)
+    }
+
+    @discardableResult
+    public func deleteCategory(_ id: UUID) throws -> CategoryDeletion {
+        let context = ModelContext(container)
+        let category = try categoryModel(id, in: context)
+        let items = (category.items ?? []).map(\.snapshot)
+        let deletion = CategoryDeletion(
+            category: category.snapshot(openCount: items.filter { !$0.isDone }.count),
+            itemIDs: items.map(\.id)
+        )
+        context.delete(category)
+        try save(context)
+        return deletion
+    }
+
+    public func restoreCategory(_ deletion: CategoryDeletion) throws {
+        let context = ModelContext(container)
+        guard (try? categoryModel(deletion.category.id, in: context)) == nil else { return }
+        let snapshot = deletion.category
+        let category = Category(
+            id: snapshot.id,
+            name: snapshot.name,
+            emoji: snapshot.emoji,
+            colorName: snapshot.colorName,
+            sortIndex: snapshot.sortIndex
+        )
+        context.insert(category)
+        for itemID in deletion.itemIDs {
+            // Items the user re-filed since the delete stay where they are.
+            if let item = try? itemModel(itemID, in: context), item.category == nil {
+                item.category = category
+            }
+        }
         try save(context)
     }
 

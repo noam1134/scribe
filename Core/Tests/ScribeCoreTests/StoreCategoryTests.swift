@@ -109,3 +109,61 @@ struct StoreCategoryTests {
         #expect(throws: StoreError.duplicateCategoryName) { try store.updateCategory(other) { $0.name = "side projects" } }
     }
 }
+
+@MainActor
+struct StoreCategoryUndoTests {
+    @Test func deleteThenRestoreKeepsIdentityPositionAndItems() throws {
+        let store = try makeStore()
+        let a = try store.addCategory(CategoryDraft(name: "A"))
+        let b = try store.addCategory(CategoryDraft(name: "B", emoji: "🏝️", colorName: "teal"))
+        let c = try store.addCategory(CategoryDraft(name: "C"))
+        let first = try store.addItem(ItemDraft(title: "one", categoryID: b))
+        let second = try store.addItem(ItemDraft(title: "two", categoryID: b))
+        let before = try #require(store.categories.first { $0.id == b })
+
+        let deletion = try store.deleteCategory(b)
+        #expect(deletion.category == before)
+        #expect(Set(deletion.itemIDs) == [first, second])
+        #expect(store.categories.map(\.id) == [a, c])
+
+        try store.restoreCategory(deletion)
+        #expect(store.categories.map(\.id) == [a, b, c])
+        #expect(store.categories.first { $0.id == b } == before)
+        #expect(Set(store.items(.category(b)).map(\.id)) == [first, second])
+
+        try store.restoreCategory(deletion) // second restore is a no-op
+        #expect(store.categories.count == 3)
+    }
+
+    @Test func restoreLeavesItemsTheUserRefiled() throws {
+        let store = try makeStore()
+        let home = try store.addCategory(CategoryDraft(name: "Home"))
+        let trip = try store.addCategory(CategoryDraft(name: "Trip"))
+        let moved = try store.addItem(ItemDraft(title: "moved", categoryID: trip))
+        let kept = try store.addItem(ItemDraft(title: "kept", categoryID: trip))
+        let deletion = try store.deleteCategory(trip)
+        try store.updateItem(moved) { $0.categoryID = home }
+        try store.restoreCategory(deletion)
+        #expect(store.items(.category(trip)).map(\.id) == [kept])
+        #expect(store.items(.category(home)).map(\.id) == [moved])
+    }
+
+    nonisolated static let moveCases: [(IndexSet, Int, [String])] = [
+        (IndexSet(integer: 0), 2, ["B", "A", "C"]),
+        (IndexSet(integer: 0), 3, ["B", "C", "A"]),
+        (IndexSet(integer: 2), 0, ["C", "A", "B"]),
+        (IndexSet([0, 2]), 1, ["A", "C", "B"]),
+        (IndexSet(integer: 1), 1, ["A", "B", "C"]),
+    ]
+
+    /// Same results as `Array.move(fromOffsets:toOffset:)`, which SwiftUI's
+    /// `onMove` reports.
+    @Test(arguments: moveCases)
+    func moveCategoriesMatchesOnMove(source: IndexSet, destination: Int, expected: [String]) throws {
+        let store = try makeStore()
+        for name in ["A", "B", "C"] { try store.addCategory(CategoryDraft(name: name)) }
+        try store.moveCategories(fromOffsets: source, toOffset: destination)
+        #expect(store.categories.map(\.name) == expected)
+        #expect(store.categories.map(\.sortIndex) == [0, 1, 2])
+    }
+}

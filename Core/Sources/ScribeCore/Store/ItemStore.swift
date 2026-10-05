@@ -65,6 +65,17 @@ public struct CategoryEdit: Equatable, Sendable {
     }
 }
 
+/// What `deleteCategory` removed — everything `restoreCategory` needs.
+public struct CategoryDeletion: Equatable, Sendable {
+    public let category: CategorySnapshot
+    public let itemIDs: [UUID]
+
+    public init(category: CategorySnapshot, itemIDs: [UUID]) {
+        self.category = category
+        self.itemIDs = itemIDs
+    }
+}
+
 public enum StoreError: Error, Equatable {
     case emptyTitle
     case emptyCategoryName
@@ -96,8 +107,14 @@ public protocol ItemStore: AnyObject, Observable {
     func updateCategory(_ id: UUID, _ edit: (inout CategoryEdit) -> Void) throws
     /// `index` is the category's final position in the sorted list (clamped).
     func moveCategory(_ id: UUID, toIndex index: Int) throws
-    /// Items in the category move to the Inbox.
-    func deleteCategory(_ id: UUID) throws
+    /// Same meaning as SwiftUI's `onMove(perform:)`: `destination` is an index
+    /// in the list *before* the move.
+    func moveCategories(fromOffsets source: IndexSet, toOffset destination: Int) throws
+    /// Items in the category move to the Inbox. Keep the result to undo.
+    @discardableResult func deleteCategory(_ id: UUID) throws -> CategoryDeletion
+    /// Undo for `deleteCategory`: same id, name, color and position; items
+    /// that are still in the Inbox go back into it. No-op if it exists.
+    func restoreCategory(_ deletion: CategoryDeletion) throws
 
     func exportJSON() throws -> Data
     /// Re-read everything (after a sync import or a write by another process).
