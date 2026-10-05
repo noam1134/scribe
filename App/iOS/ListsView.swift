@@ -44,20 +44,15 @@ struct ListsView: View {
                     // rows in and out where they stand while the next section
                     // slides over them; here a section opens and closes like
                     // an accordion and rows below move with it.
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(sections) { section in
-                                sectionView(section, categories: categories)
-                            }
-                            if isAdding {
-                                ListCard { addRow.padding(.horizontal, 16).padding(.vertical, 10) }
-                                    .padding(.top, 16)
-                            }
+                    CardScroll {
+                        ForEach(sections) { section in
+                            sectionView(section, categories: categories)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 24)
+                        if isAdding {
+                            ListCard { addRow.padding(.horizontal, 16).padding(.vertical, 10) }
+                                .padding(.top, 16)
+                        }
                     }
-                    .background(Color(.systemGroupedBackground))
                 }
             }
             .scrollDismissesKeyboard(.immediately)
@@ -148,24 +143,11 @@ struct ListsView: View {
                             .padding(.vertical, 11)
                             .accessibilityIdentifier("addFirst-\(category.name)")
                         }
-                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
-                            if index > 0 { ListDivider() }
-                            SwipeRow(
-                                id: item.id,
-                                open: $swipedItemID,
-                                isEnabled: router.expandedItemID != item.id,
-                                done: item.kind == .task ? { toggleDone(item) } : nil,
-                                delete: { deleteItem(item) }
-                            ) {
-                                ItemRow(
-                                    store: store, item: item, categories: categories, showsCategory: false,
-                                    offersUndoOnComplete: !router.lists.showsCompleted
-                                )
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 9)
-                            }
-                            .id(item.id)
-                        }
+                        ItemCardRows(
+                            store: store, items: section.items, categories: categories, showsCategory: false,
+                            offersUndoOnComplete: !router.lists.showsCompleted,
+                            swiped: $swipedItemID
+                        )
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -175,24 +157,6 @@ struct ListsView: View {
             .clipped()
         }
         .padding(.top, 14)
-    }
-
-    // Animated, so the rows around a completed or deleted one close up.
-    private func toggleDone(_ item: ItemSnapshot) {
-        withAnimation(.snappy) { router.perform {
-            try store.setDone(item.id, !item.isDone)
-            if !router.lists.showsCompleted && !item.isDone {
-                undo.offer("Completed \u{201C}\(item.title)\u{201D}") { try store.setDone(item.id, false) }
-            }
-        } }
-    }
-
-    private func deleteItem(_ item: ItemSnapshot) {
-        withAnimation(.snappy) { router.perform {
-            try store.deleteItem(item.id)
-            if router.expandedItemID == item.id { router.expandedItemID = nil }
-            undo.offer("Deleted \u{201C}\(item.title)\u{201D}") { try store.restoreItem(item) }
-        } }
     }
 
     private func editedSectionID(in sections: [ListSection]) -> ListSectionID? {
@@ -500,23 +464,5 @@ private struct CategoryEditRow: View {
         } catch {
             self.error = error.localizedDescription
         }
-    }
-}
-
-/// A section's rounded card on the grouped background.
-private struct ListCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) { content }
-            .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 22))
-            .clipShape(.rect(cornerRadius: 22))
-    }
-}
-
-/// The separator between a card's rows, from where the titles start.
-private struct ListDivider: View {
-    var body: some View {
-        Divider().padding(.leading, 50).padding(.trailing, 16)
     }
 }

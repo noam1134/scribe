@@ -4,7 +4,7 @@ import SwiftUI
 /// One item in any list: checkbox (tasks) or note glyph (memos), title in
 /// its own text direction, due/category line. Tap to edit in place (the
 /// editor takes the title's place; a tap between its fields closes it);
-/// swipe right to complete, left to delete with Undo (spec §9.2).
+/// in a card, swipe right to complete, left to delete with Undo (spec §9.2).
 struct ItemRow: View {
     let store: any ItemStore
     let item: ItemSnapshot
@@ -58,18 +58,7 @@ struct ItemRow: View {
                     .onTapGesture { setExpanded(false) }
             }
         }
-        .swipeActions(edge: .leading) {
-            if item.kind == .task {
-                Button(item.isDone ? "Not Done" : "Done", systemImage: "checkmark") { toggleDone() }
-                    .tint(.green)
-            }
-        }
-        .swipeActions(edge: .trailing) {
-            Button("Delete", systemImage: "trash", role: .destructive) { delete() }
-        }
         .contextMenu { menu }
-        // Tighter than the system's rows: more of the list on screen.
-        .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
     }
 
     @ViewBuilder private var marker: some View {
