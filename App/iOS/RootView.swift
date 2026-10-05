@@ -16,7 +16,7 @@ struct RootView: View {
         TabView(selection: $router.tab) {
             Tab("Upcoming", systemImage: "calendar", value: AppRouter.Tab.upcoming) {
                 NavigationStack {
-                    ComingNext(title: "Upcoming")
+                    UpcomingView(store: store)
                 }
             }
             Tab("Categories", systemImage: "square.stack", value: AppRouter.Tab.categories) {
