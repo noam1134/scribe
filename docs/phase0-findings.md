@@ -2,7 +2,7 @@
 
 Date: 2026-10-05
 Devices: iPhone "Noam" (iPhone18,1, iOS 27.0), Mac (macOS 27.0)
-Build: branch phase0-sync-spike, commit 5bbeae0
+Builds: branch phase0-sync-spike — 5bbeae0 (M1–M2), 677daf0 (Mac push registration), 68b661b (file log and `-probeAdd`; M1 repeat, M3–M5)
 
 ## Setup findings (before measurements)
 
@@ -16,7 +16,7 @@ Arrival times on the Mac come from the store's persistent history (`ATRANSACTION
 
 | ID | Scenario | Result (seconds) | Notes |
 |----|----------|------------------|-------|
-| M1 | Both apps open, add on iPhone ×3 within 5 s → visible on Mac | **Never by push.** Batch: 23.9–36.5 s but pulled by Mac-side clicks. Clean single add 13:23:57: arrived 13:33:17, 2.8 s after Mac activation. Repeat after adding `registerForRemoteNotifications` (registration succeeded, Mac awake, app frontmost): iPhone note 13:56:50 uploaded at once (`NEEDSUPLOAD = 0`), no push ever reached the Mac in 3.5 min, imported 14:00:24 (214 s), ~2 s after re-activation | **The Mac app only imports when it becomes active.** Registering for remote notifications did not change that. |
+| M1 | Both apps open, add on iPhone ×3 within 5 s → visible on Mac | **Never by push.** Batch: 23.9–36.5 s but pulled by Mac-side clicks. Clean single add 13:23:57: arrived 13:33:17, 2.8 s after Mac activation. Repeat after adding `registerForRemoteNotifications` (registration succeeded, Mac awake, app launched frontmost at 13:56 — window focus during the 3.5-min wait was not recorded): iPhone note 13:56:50 uploaded at once (`NEEDSUPLOAD = 0`), no push ever reached the Mac in 3.5 min, imported 14:00:24 (214 s), ~2 s after re-activation | **The Mac app only imports when it becomes active.** Registering for remote notifications did not change that. |
 | M1r | Both apps open, add on Mac ×3 within 5 s → visible on iPhone | 3.1–3.5 (iPhone store history) | iPhone in foreground receives pushes; Mac exports immediately on save. |
 | M2 | iPhone app backgrounded, add on Mac → iPhone widget updates? | **No update for 6+ min.** Mac note 13:41:57 was imported on the iPhone at 13:48:44 (407 s) — the moment the app was reopened | iOS did not wake the suspended app for the CloudKit silent push (build has `UIBackgroundModes: remote-notification` and `aps-environment: development`, verified). Silent pushes are low-priority and throttled by iOS. |
 | M2b | Same as M2 with Low Power Mode ON | Skipped | M2 already fails without Low Power Mode. |
@@ -30,7 +30,7 @@ Arrival times on the Mac come from the store's persistent history (`ATRANSACTION
 
 ## Answers to spec §14
 
-1. Cross-device sync works (target ≤ ~60 s with both apps open): **Partly.** Mac → iPhone ≈ 3 s while the iPhone app is in front. iPhone → Mac: the iPhone uploads at once, but the Mac app receives **no CloudKit pushes** (not even after `registerForRemoteNotifications` succeeded, Mac awake, app frontmost) and only imports **~2 s after the app becomes active**. A suspended iPhone app is **not woken** by the silent push either (M2: 407 s, imported on reopen).
+1. Cross-device sync works (target ≤ ~60 s with both apps open): **Partly.** Mac → iPhone ≈ 3 s while the iPhone app is in front. iPhone → Mac: the iPhone uploads at once, but the Mac app receives **no CloudKit pushes** (not even after `registerForRemoteNotifications` succeeded, Mac awake, app launched frontmost at 13:56 — window focus during the 3.5-min wait was not recorded) and only imports **~2 s after the app becomes active**. A suspended iPhone app is **not woken** by the silent push either (M2: 407 s, imported on reopen).
 2. Out-of-app writes (widget / Siri / Control) reach the other device: **Unanswered on device** — none of the three ran on the iPhone (Shortcuts didn't list Scribe). In the simulator the shortcut ran in the app process and wrote to the shared store.
 3. Sync events observable under SwiftData (→ "Last synced" in Settings): **Yes** (M6).
 4. macOS App Group identifier that works: `group.com.noamchuri.scribe` — works once registered in the developer portal and present in the provisioning profile (no Team-ID-prefixed fallback needed).
@@ -41,8 +41,12 @@ Arrival times on the Mac come from the store's persistent history (`ATRANSACTION
 **GO WITH CHANGES** — decided by the author on 2026-10-05. (The plan's NO-GO rule ("M1 never syncs with both apps open") is technically met for iPhone → Mac, because the Mac only syncs on activation; the author chose to keep iCloud with the changes below.)
 
 Changes required in later phases:
-- §12 / Phase 3 (Mac): keep `registerForRemoteNotifications`; investigate why CloudKit pushes don't reach the Mac app (dev-signed build, APNs environment, CloudKit subscription); until fixed, the Mac shows the latest data within ~2 s of becoming active, and the menu bar panel must trigger activation when opened.
-- §10 / §11 / Phase 4–5 (iPhone): iOS won't reliably wake the app for silent pushes, so widgets and notifications can be stale until the app runs. Add a `BGAppRefreshTask` that lets the app import and reload widgets opportunistically; document that widget data can lag.
-- §8 / Phase 4: first thing on device, confirm Scribe's App Intents are registered (Shortcuts lists them) and that widget "+" / checkbox and Control actions write; record which process runs them.
+- §12 / Phase 3 (Mac): re-add `registerForRemoteNotifications` (removed with the probe); investigate why CloudKit pushes don't reach the Mac app (dev-signed build, APNs environment, CloudKit subscription); until fixed, the Mac shows the latest data within ~2 s of becoming active, and the menu bar panel must trigger activation when opened. The Mac desktop widget is stale the same way.
+- §10 / §11 / Phase 4–5 (iPhone): iOS won't reliably wake the app for silent pushes, so widgets and notifications can be stale until the app runs. `NSPersistentCloudKitContainer` has no public "import now" API: Phase 4 first verifies on a device whether a `BGAppRefreshTask` triggers an import and a widget reload; fallback is showing data age and accepting the lag.
+- §8 / Phase 4: first thing on device, confirm Scribe's App Intents are registered (Shortcuts lists them) and that widget "+" / checkbox and Control actions write; record which process runs them. The extension-process write → app export path is untested everywhere (the only successful out-of-app write ran in the app process); test it in the simulator too.
 - §13 / Phase 6: "Last synced" is feasible — use `NSPersistentCloudKitContainer.eventChangedNotification`.
 - §16 build notes: register App Groups manually in the developer portal; signed builds need `-allowProvisioningDeviceRegistration` and their own derived-data folder; the agent shell needs its sandbox off for signing.
+
+## Open items
+
+- CloudKit Development environment reset (removes `CD_ProbeNote`) — pending the author. Must happen before the first production schema deploy and before Phase 1 Task 10's record-type check.
