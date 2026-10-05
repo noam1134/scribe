@@ -155,9 +155,19 @@ private struct CategoryEditRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                TextField("🙂", text: $emoji)
+                TextField("", text: $emoji)
                     .frame(width: 36)
+                    .overlay {
+                        // An emoji placeholder draws as a missing-glyph box, so
+                        // show a symbol until one is typed.
+                        if emoji.isEmpty {
+                            Image(systemName: "face.smiling")
+                                .foregroundStyle(.tertiary)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .onChange(of: emoji) { _, value in emoji = String(value.suffix(1)) }
+                    .accessibilityLabel("Emoji")
                 TextField("Name", text: $name)
                     .onSubmit(save)
                     .onChange(of: name) { error = nil }
