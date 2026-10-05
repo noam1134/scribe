@@ -229,7 +229,7 @@ All paths call `QuickAddParser` then `ItemStore.addItem`.
 | Control ("Add to Scribe") | iOS (macOS if supported — verify) | `ControlWidgetButton` running `OpenQuickAddIntent`; usable in Control Center, Lock Screen, Action Button. |
 | Siri / Shortcuts | iOS, macOS | `AddItemIntent(text:)`; prompts "What should I add?" if missing; saves without opening the app; replies e.g. "Added ‘Book flights’ to Thailand, Friday." |
 | Menu bar panel | macOS | `MenuBarExtra` (window style): today's agenda + quick-add field. |
-| Global hotkey `⌃⌥Space` | macOS | Floating glass panel, Spotlight-style; Enter saves, Esc closes; configurable in Settings via KeyboardShortcuts recorder. |
+| Global hotkey `⌃⇧Space` | macOS | Floating glass panel, Spotlight-style; Enter saves, Esc closes; configurable in Settings via KeyboardShortcuts recorder. |
 
 App Intents: `AddItemIntent`, `CompleteTaskIntent(itemID)`, `OpenQuickAddIntent(category?)`, plus `CategoryEntity` for widget configuration. App Shortcut phrases are English in v1; spoken/typed content may be Hebrew.
 
@@ -382,3 +382,4 @@ Decided by the author after using the iPhone app:
 - **Every new item gets a real category (§8, §9.2).** The quick-add composer shows a row of category chips under the field; Add stays disabled until a category is chosen. A typed `#tag` picks it, a tapped chip overrides the tag, and the category on screen is preselected. A typed unknown `#name` offers "+ New category" (creating it picks it). The composer never offers or defaults to the Inbox; a preselected category that no longer exists leaves nothing picked.
 - **Inbox becomes a holding place, not a destination.** It holds items whose category was deleted (and, until Phase 4 decides otherwise, entries made without a category). Its row on the Categories screen shows only while something is in it. "Move to" and the inline editor's category picker don't list it.
 - **Siri / Shortcuts / Control adds (Phase 4)** follow the same rule: ask for a category (or infer one) instead of filing to the Inbox.
+- **Quick-add hotkey default is `⌃⇧Space` (§8).** `⌃⌥Space` is macOS's input-source shortcut ("Select next source in Input menu"), enabled on the author's Mac (ABC + Hebrew-PC). Decided in the Phase 3 review.

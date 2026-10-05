@@ -62,7 +62,7 @@ The Mac UI, deep-link drain, activation refresh, `KeyboardShortcuts` (macOS-only
 
 - **Mac CloudKit.** After the 2026-10-05 Development reset, the Mac app's CloudKit setup fails with `CKErrorDomain 6` (service unavailable) while the iPhone works; clearing the app's CloudKit cache and restarting `cloudd` did not help. Try a Mac restart / iCloud sign-out-in first. Then re-run the cross-device check in both directions.
 - **Mac push.** `registerForRemoteNotifications()` is back; registration, every push and every CloudKit setup/import/export is logged (`log stream --level info --predicate 'subsystem == "com.noamchuri.scribe"'`, categories `push`, `sync`, `hotkey`). A signed run must show whether pushes reach the app and whether an import follows (spec §18).
-- **Hotkey is ⌃⇧Space** (spec §8 amended in the Phase 3 review: ⌃⌥Space is macOS's "Select next source in Input menu" on the author's Mac). The menu bar panel warns if the shortcut is also a macOS one. Phase 6's recorder can change it.
+- **Hotkey is ⌃⇧Space** (spec §8, §19: ⌃⌥Space is macOS's "Select next source in Input menu" on the author's Mac). The menu bar panel warns if the shortcut is also a macOS one. Phase 6's recorder can change it.
 - **Activation.** Opening the menu bar extra activates the app (spec §18), which brings the main window forward behind it; closing hands activation back unless the user went on in Scribe. The hotkey panel never activates the app. Judge the feel on the author's Mac.
 - A menu path back to a closed main window (New Item could open the main window when none is open).
 - `handlesExternalEvents` is only on the ready root; add it to the loading and failed roots too.
