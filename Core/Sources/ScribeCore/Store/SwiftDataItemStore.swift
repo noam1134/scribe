@@ -47,6 +47,8 @@ public final class SwiftDataItemStore: ItemStore {
             return all
                 .filter { $0.title.localizedStandardContains(query) || $0.body.localizedStandardContains(query) }
                 .sorted { $0.updatedAt > $1.updatedAt }
+        case .all:
+            return all.sorted(by: ItemOrdering.list)
         }
     }
 

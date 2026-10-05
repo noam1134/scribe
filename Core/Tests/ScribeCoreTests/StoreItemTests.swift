@@ -139,6 +139,18 @@ struct StoreItemTests {
         #expect(store.items(.search("לקנות")).isEmpty)
     }
 
+    @Test func allReturnsEveryItemIncludingDoneAndInbox() throws {
+        let store = try makeStore()
+        let work = try store.addCategory(CategoryDraft(name: "Work"))
+        let inbox = try store.addItem(ItemDraft(title: "inbox"))
+        let done = try store.addItem(ItemDraft(title: "done", categoryID: work))
+        let memo = try store.addItem(ItemDraft(title: "memo", kind: .memo, categoryID: work, due: DueDate(day: LocalDay(2026, 10, 6))))
+        try store.setDone(done, true)
+        let all = store.items(.all)
+        #expect(Set(all.map(\.id)) == [inbox, done, memo])
+        #expect(all.first?.id == memo, "dated items first, like a category list")
+    }
+
     @Test func hebrewSearchWorks() throws {
         let store = try makeStore()
         let id = try store.addItem(ItemDraft(title: "לקנות חלב"))
@@ -194,5 +206,29 @@ struct StoreItemTests {
         #expect(app.item(id)?.title == "renamed by widget")
         #expect(app.item(id)?.isDone == true)
         #expect(Set(app.items(.inbox).map(\.title)) == ["renamed by widget", "from widget"])
+    }
+
+    /// The app's CloudKit mirroring exports changes it finds in the store's
+    /// persistent history, so a write made by a container without CloudKit
+    /// (the widget extension's) must be recorded there too (spec §4.3, §12).
+    @Test func writesWithoutCloudKitAreInPersistentHistory() throws {
+        let url = URL.temporaryDirectory.appending(path: "scribe-\(UUID().uuidString).store")
+        defer {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(at: URL(filePath: url.path() + suffix))
+            }
+        }
+        let schema = StoreFactory.schema
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none))
+        let widget = SwiftDataItemStore(container: container, calendar: TestCalendar.jerusalem)
+        let id = try widget.addItem(ItemDraft(title: "from widget"))
+        try widget.setDone(id, true)
+
+        let reader = try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none))
+        let transactions = try ModelContext(reader).fetchHistory(HistoryDescriptor<DefaultHistoryTransaction>())
+        let changes = transactions.flatMap(\.changes)
+        #expect(transactions.count >= 2, "one transaction per save")
+        #expect(changes.contains { if case .insert = $0 { true } else { false } })
+        #expect(changes.contains { if case .update = $0 { true } else { false } })
     }
 }
