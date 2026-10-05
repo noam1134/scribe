@@ -87,7 +87,9 @@ struct ItemEditor: View {
             if phase != .active { saveText() }
         }
         #if os(macOS)
-        .onAppear { titleFocused = true }
+        // After this pass, not inside it: the row is still being built by
+        // the list's table view.
+        .task { titleFocused = true }
         .onExitCommand {
             finish()
             close()
