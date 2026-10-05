@@ -19,6 +19,10 @@ enum AppProcess {
         guard syncRefresher == nil else { return }
         syncRefresher = SyncRefresher(store: store)
         changeRelay = StoreChangeRelay()
+        // Writes outside the screens (Siri, a widget tick, background
+        // refresh) re-plan before they return. The scheduler serializes and
+        // coalesces passes, so overlapping calls are safe.
+        StoreChanged.observe { await NotificationCoordinator.shared.rescheduleNow() }
         log.info("App services started")
     }
 }
@@ -30,9 +34,10 @@ extension SharedStore {
 }
 
 /// Turns the store's own notifications — the app's saves, iCloud imports,
-/// writes by the widget or intents — into one debounced
-/// `StoreChanged.notify()`, and records when the data was last known to
-/// match iCloud, for the widgets' "Updated …" label (spec §18).
+/// writes by the widget or intents — into one debounced widget reload, and
+/// records when the data was last known to match iCloud, for the widgets'
+/// "Updated …" label (spec §18). Notifications follow those changes by
+/// watching the store themselves.
 @MainActor
 final class StoreChangeRelay {
     private var observers: [NSObjectProtocol] = []
@@ -42,7 +47,7 @@ final class StoreChangeRelay {
         let center = NotificationCenter.default
         // Posted after every save and import on the store.
         observers.append(center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.scheduleNotify() }
+            MainActor.assumeIsolated { self?.scheduleReload() }
         })
         observers.append(center.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: .main) { [weak self] note in
             let key = NSPersistentCloudKitContainer.eventNotificationUserInfoKey
@@ -51,7 +56,7 @@ final class StoreChangeRelay {
             MainActor.assumeIsolated {
                 FreshnessStamp.record(end)
                 // Even an import with no changes moves "Updated …" forward.
-                self?.scheduleNotify()
+                self?.scheduleReload()
             }
         })
         #if os(iOS)
@@ -60,25 +65,55 @@ final class StoreChangeRelay {
         observers.append(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 FreshnessStamp.record()
-                self?.notifyNow()
+                self?.notifyBeforeSuspension()
                 BackgroundRefresh.schedule()
             }
         })
         #endif
     }
 
-    /// Saves and imports come in bursts; notify once they settle.
-    private func scheduleNotify() {
+    /// Saves and imports come in bursts; reload once they settle.
+    private func scheduleReload() {
         pending?.cancel()
         pending = Task {
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
-            await StoreChanged.notify()
+            StoreChanged.reloadWidgets()
         }
     }
 
-    private func notifyNow() {
-        pending?.cancel()
-        pending = Task { await StoreChanged.notify() }
+    #if os(iOS)
+    /// Widgets drop their "Updated …" label and pending notifications are
+    /// brought up to date — inside a background task, so the app isn't
+    /// suspended halfway.
+    private func notifyBeforeSuspension() {
+        pending?.cancel() // notify() reloads the widgets too
+        let assertion = BackgroundAssertion(name: "Scribe: store changed")
+        Task {
+            await StoreChanged.notify()
+            assertion.end()
+        }
+    }
+    #endif
+}
+
+#if os(iOS)
+/// A `beginBackgroundTask` that ends exactly once: when the work finishes or
+/// when iOS says time is up.
+@MainActor
+private final class BackgroundAssertion {
+    private var identifier: UIBackgroundTaskIdentifier = .invalid
+
+    init(name: String) {
+        identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    func end() {
+        guard identifier != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(identifier)
+        identifier = .invalid
     }
 }
+#endif
