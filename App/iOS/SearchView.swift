@@ -19,6 +19,7 @@ struct SearchView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.immediately)
         .overlay {
             if trimmed.isEmpty {
                 ContentUnavailableView("Search", systemImage: "magnifyingglass", description: Text("Titles and notes, including done items."))

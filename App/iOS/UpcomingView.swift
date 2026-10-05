@@ -25,6 +25,7 @@ struct UpcomingView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.immediately)
         .overlay {
             if agenda.isEmpty {
                 ContentUnavailableView(

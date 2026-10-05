@@ -239,7 +239,63 @@ final class ScribeUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Renew gym membership"].exists)
     }
 
-    // MARK: Notes (spec §20)
+    // MARK: Keyboard and notes (spec §20)
+
+    private func hasFocus(_ element: XCUIElement) -> Bool {
+        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
+    }
+
+    /// Waits for the focus to be (or stop being) on `element`.
+    private func waitForFocus(_ element: XCUIElement, _ focused: Bool = true) -> Bool {
+        let predicate = NSPredicate { _, _ in self.hasFocus(element) == focused }
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: nil)], timeout: 5) == .completed
+    }
+
+    /// Just above the keyboard (when the simulator shows one), below a
+    /// short list's last row.
+    private func emptySpaceAboveTheKeyboard() -> XCUICoordinate {
+        let keyboard = app.keyboards.firstMatch
+        let y = keyboard.exists ? keyboard.frame.minY - 50 : app.frame.height * 0.6
+        return app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: app.frame.width / 2, dy: y))
+    }
+
+    func testTappingOutsideAFieldClosesTheKeyboard() {
+        app.buttons["quickAddBar"].tap()
+        let field = app.textFields["quickAddField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForFocus(field))
+
+        // Another field takes the focus with one tap.
+        let notes = app.descendants(matching: .any)["quickAddNotes"].firstMatch
+        notes.tap()
+        XCTAssertTrue(waitForFocus(notes))
+        notes.typeText("charger")
+        XCTAssertEqual(notes.value as? String, "charger")
+
+        // A tap on something that isn't a field closes the keyboard.
+        app.staticTexts["Try \u{201C}call mom tomorrow 9am #family\u{201D}"].tap()
+        XCTAssertTrue(waitForFocus(notes, false))
+
+        // Chips work on the first tap.
+        field.tap()
+        XCTAssertTrue(waitForFocus(field))
+        field.typeText("Pack bags #errands")
+        app.buttons["newCategoryChip"].tap()
+        XCTAssertTrue(app.buttons["Add"].isEnabled, "the chip should work on the first tap")
+        app.buttons["Add"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+
+        // In Lists, empty space closes the inline editor's keyboard and
+        // leaves the editor open.
+        app.staticTexts["Pack bags"].tap()
+        let title = app.textFields["titleField"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        XCTAssertTrue(waitForFocus(title))
+        emptySpaceAboveTheKeyboard().tap()
+        XCTAssertTrue(waitForFocus(title, false))
+        XCTAssertTrue(title.exists)
+    }
 
     func testComposerSavesNotes() {
         app.buttons["quickAddBar"].tap()

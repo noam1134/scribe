@@ -31,6 +31,7 @@ struct RootView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .closesKeyboardOnTapOutside()
         .tabViewBottomAccessory {
             QuickAddBar()
         }
