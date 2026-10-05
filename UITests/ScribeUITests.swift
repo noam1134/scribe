@@ -48,4 +48,20 @@ final class ScribeUITests: XCTestCase {
         checkbox.tap()
         XCTAssertTrue(app.staticTexts["Call Dan"].waitForNonExistence(timeout: 5))
     }
+
+    func testEditedTitleSurvivesADateChange() {
+        quickAdd("Pay rent today")
+        app.staticTexts["Pay rent"].tap()
+        let field = app.textFields["titleField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText(" now")
+        app.buttons["dateChip"].tap()
+        app.buttons["Tomorrow"].tap()
+        let moved = app.textFields["titleField"]
+        XCTAssertTrue(moved.waitForExistence(timeout: 5))
+        moved.tap()
+        moved.typeText("\n")
+        XCTAssertTrue(app.staticTexts["Pay rent now"].waitForExistence(timeout: 5))
+    }
 }

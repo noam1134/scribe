@@ -173,7 +173,17 @@ struct ItemEditor: View {
         update { $0.due = due }
     }
 
+    /// Every write also carries the text typed so far: a date or kind change
+    /// can move the row to another section, which rebuilds this editor from
+    /// the store — unsaved text would otherwise come back stale.
     private func update(_ edit: (inout ItemEdit) -> Void) {
-        router.perform { try store.updateItem(item.id, edit) }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        router.perform {
+            try store.updateItem(item.id) {
+                if !trimmed.isEmpty { $0.title = trimmed }
+                $0.body = notes
+                edit(&$0)
+            }
+        }
     }
 }
