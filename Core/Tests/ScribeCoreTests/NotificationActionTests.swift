@@ -7,16 +7,18 @@ struct NotificationActionTimeTests {
     let calendar = TestCalendar.jerusalem
 
     static let inAnHourCases: [(hour: Int, minute: Int, second: Int, expected: DueDate)] = [
-        (10, 0, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 11 * 60)),
-        (10, 0, 1, DueDate(day: LocalDay(2026, 10, 5), minute: 11 * 60 + 5)),
-        (10, 3, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 11 * 60 + 5)),
-        (10, 5, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 11 * 60 + 5)),
+        (14, 0, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 15 * 60)),
+        (14, 0, 20, DueDate(day: LocalDay(2026, 10, 5), minute: 15 * 60)),
+        (14, 0, 59, DueDate(day: LocalDay(2026, 10, 5), minute: 15 * 60)),
+        (14, 1, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 15 * 60 + 5)),
+        (14, 3, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 15 * 60 + 5)),
+        (14, 5, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 15 * 60 + 5)),
         (10, 57, 0, DueDate(day: LocalDay(2026, 10, 5), minute: 12 * 60)),
         (23, 30, 0, DueDate(day: LocalDay(2026, 10, 6), minute: 30)),
         (22, 57, 30, DueDate(day: LocalDay(2026, 10, 6), minute: 0)),
     ]
 
-    /// Now + 1 hour, rounded up to the next 5 minutes; seconds count.
+    /// Now + 1 hour, seconds dropped, rounded up to the next 5 minutes.
     @Test(arguments: inAnHourCases)
     func inAnHourRoundsUpToFiveMinutes(hour: Int, minute: Int, second: Int, expected: DueDate) {
         let now = TestCalendar.date(2026, 10, 5, hour, minute).addingTimeInterval(TimeInterval(second))

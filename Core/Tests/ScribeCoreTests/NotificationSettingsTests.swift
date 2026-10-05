@@ -67,6 +67,24 @@ struct NotificationSettingsTests {
         #expect(NotificationSettings(from: defaults, fallback: .iOSDefault) == .iOSDefault)
     }
 
+    @Test func summaryMinuteStaysInsideTheDay() {
+        var settings = NotificationSettings.iOSDefault
+        settings.morningSummaryMinute = -5
+        #expect(settings.morningSummaryMinute == 0)
+        settings.morningSummaryMinute = 2000
+        #expect(settings.morningSummaryMinute == 1439)
+        settings.morningSummaryMinute = 450
+        #expect(settings.morningSummaryMinute == 450)
+        #expect(NotificationSettings(isEnabled: true, morningSummaryEnabled: true, morningSummaryMinute: 1440).morningSummaryMinute == 1439)
+        #expect(NotificationSettings(isEnabled: true, morningSummaryEnabled: true, morningSummaryMinute: -1).morningSummaryMinute == 0)
+    }
+
+    /// The widget and intents read the master switch, so the settings live
+    /// in the App Group's defaults (still per device: they aren't synced).
+    @Test func storedInTheAppGroup() {
+        #expect(NotificationSettings.appGroupSuiteName == ScribeIDs.appGroup)
+    }
+
     @Test func midnightIsAValidSummaryTime() {
         let defaults = freshDefaults()
         defaults.set(0, forKey: NotificationSettings.Keys.morningSummaryMinute)

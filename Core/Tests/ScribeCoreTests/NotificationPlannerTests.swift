@@ -360,6 +360,20 @@ struct NotificationPlannerTests {
         #expect(StableHash.fnv1a64("abc") == "e71fa2190541574b")
     }
 
+    /// Other processes (the widget's Complete intent) remove an item's
+    /// alerts by these identifiers.
+    @Test func publicIdentifiersMatchWhatThePlannerSchedules() throws {
+        let task = item("Call Dan", LocalDay(2026, 10, 6), at: 9 * 60)
+        let planned = plan([task], settings: Self.everything)
+        #expect(planned.map(\.id) == [
+            PlannedNotification.identifier(forSummaryOn: LocalDay(2026, 10, 6)),
+            PlannedNotification.identifier(forItem: task.id),
+        ])
+        #expect(PlannedNotification.identifier(forItem: task.id) == "item.\(task.id.uuidString)")
+        #expect(PlannedNotification.identifier(forSummaryOn: LocalDay(2026, 10, 6)) == "summary.2026-10-06")
+        #expect(PlannedNotification.itemID(fromIdentifier: PlannedNotification.identifier(forItem: task.id)) == task.id)
+    }
+
     @Test func identifierHelpers() {
         let id = UUID()
         #expect(PlannedNotification.itemID(fromIdentifier: "item.\(id.uuidString)") == id)

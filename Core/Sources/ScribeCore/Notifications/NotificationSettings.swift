@@ -1,20 +1,37 @@
 import Foundation
 
-/// Per-device notification preferences (spec §11). Stored locally, never
-/// synced: the iPhone alerts by default and the Mac doesn't, so one reminder
-/// doesn't ring twice.
+/// Per-device notification preferences (spec §11). Never synced: the
+/// iPhone alerts by default and the Mac doesn't, so one reminder doesn't ring
+/// twice. Kept in the App Group's defaults (`appGroupDefaults`) so the widget
+/// and intents can read the master switch too.
 public struct NotificationSettings: Equatable, Sendable {
     /// Master switch: item alerts and the morning summary.
     public var isEnabled: Bool
     public var morningSummaryEnabled: Bool
     /// When the morning summary arrives, in minutes after local midnight.
-    public var morningSummaryMinute: Int
+    /// Always within the day: values outside 0...1439 are clamped.
+    public var morningSummaryMinute: Int {
+        didSet { morningSummaryMinute = Self.clamped(morningSummaryMinute) }
+    }
 
     public init(isEnabled: Bool, morningSummaryEnabled: Bool, morningSummaryMinute: Int) {
-        precondition((0..<1440).contains(morningSummaryMinute), "morningSummaryMinute must be in 0..<1440")
         self.isEnabled = isEnabled
         self.morningSummaryEnabled = morningSummaryEnabled
-        self.morningSummaryMinute = morningSummaryMinute
+        self.morningSummaryMinute = Self.clamped(morningSummaryMinute)
+    }
+
+    private static func clamped(_ minute: Int) -> Int {
+        min(max(minute, 0), 24 * 60 - 1)
+    }
+
+    /// The App Group shared by the app, the widget and intents. Its defaults
+    /// stay on the device.
+    public static let appGroupSuiteName = ScribeIDs.appGroup
+
+    /// Where the settings are stored (the standard defaults if the App Group
+    /// isn't available).
+    public static var appGroupDefaults: UserDefaults {
+        UserDefaults(suiteName: appGroupSuiteName) ?? .standard
     }
 
     public static let iOSDefault = NotificationSettings(isEnabled: true, morningSummaryEnabled: true, morningSummaryMinute: 9 * 60)

@@ -75,6 +75,18 @@ public struct PlannedNotification: Identifiable, Hashable, Sendable {
     static let itemPrefix = "item."
     static let summaryPrefix = "summary."
 
+    /// The request identifier of an item's due-time alert — pending or
+    /// delivered. Other processes use it to withdraw the alert, e.g. after
+    /// completing the task from a widget.
+    public static func identifier(forItem itemID: UUID) -> String {
+        itemPrefix + itemID.uuidString
+    }
+
+    /// The request identifier of one day's morning summary.
+    public static func identifier(forSummaryOn day: LocalDay) -> String {
+        summaryPrefix + day.isoString
+    }
+
     /// The item an alert's request identifier points at.
     public static func itemID(fromIdentifier identifier: String) -> UUID? {
         guard identifier.hasPrefix(itemPrefix) else { return nil }

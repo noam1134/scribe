@@ -63,7 +63,7 @@ public struct NotificationPlanner: Sendable {
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .first { !$0.isEmpty }
                 return PlannedNotification(
-                    id: PlannedNotification.itemPrefix + item.id.uuidString,
+                    id: PlannedNotification.identifier(forItem: item.id),
                     kind: .due(itemID: item.id),
                     category: item.kind == .task ? .task : .memo,
                     fireDate: fireDate,
@@ -93,7 +93,7 @@ public struct NotificationPlanner: Sendable {
             let overdue = agenda.overdue.isEmpty ? nil : "Overdue: \(agenda.overdue.count)"
             let fireDate = day.date(atMinute: minute, calendar: calendar)
             return PlannedNotification(
-                id: PlannedNotification.summaryPrefix + day.isoString,
+                id: PlannedNotification.identifier(forSummaryOn: day),
                 kind: .morningSummary(day),
                 category: .summary,
                 fireDate: fireDate,
