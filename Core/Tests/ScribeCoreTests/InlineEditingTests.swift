@@ -48,6 +48,19 @@ struct InlineEditingTests {
         #expect(take(&editing, b))
     }
 
+    /// Return or double-click on the row being edited mustn't select its
+    /// title again under the user's typing.
+    @Test func openingTheOpenRowAgainDoesNotAskAgain() {
+        var editing = InlineEditing()
+        editing.open(a)
+        #expect(take(&editing, a))
+        editing.open(a)
+        #expect(editing.itemID == a)
+        #expect(!take(&editing, a))
+        editing.open(b)
+        #expect(take(&editing, b))
+    }
+
     @Test func selectingAnotherRowCloses() {
         var editing = InlineEditing()
         editing.open(a)

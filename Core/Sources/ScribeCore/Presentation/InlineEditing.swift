@@ -11,7 +11,10 @@ public struct InlineEditing: Equatable, Sendable {
 
     public init() {}
 
+    /// Opens `id`'s editor. Already open: nothing changes — the caret stays
+    /// where the user put it.
     public mutating func open(_ id: UUID) {
+        guard itemID != id else { return }
         itemID = id
         pendingTitleFocus = id
     }
