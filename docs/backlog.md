@@ -68,6 +68,7 @@ Deferred in the Phase 2 (iPhone app) reviews.
 
 ## Phase 4 (widgets, Control, Siri)
 
+- **Every add needs a category (spec §19).** `AddItemIntent` / Siri / the Control must ask for a category (Siri disambiguation over `CategoryEntity`) or infer one — never file to the Inbox silently.
 - Verify App Intents registration on device (Shortcuts listed nothing on the iPhone in Phase 0) and the widget/Control write path in the simulator and on device; record which process runs each intent (spec §18).
 - `StoreFactory.shared` must be called once per process; an intent running inside the app needs the app's container.
 - Verify a `BGAppRefreshTask` actually triggers an import; fallback is showing data age (spec §18).

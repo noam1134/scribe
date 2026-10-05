@@ -103,11 +103,18 @@ struct ItemEditor: View {
 
     private var categoryChip: some View {
         let category = item.categoryID.flatMap { id in categories.first { $0.id == id } }
+        // No Inbox to move into (spec §19); an item already there shows
+        // "Inbox" until it's given a category.
         return Menu {
-            Picker("Category", selection: categoryBinding) {
-                Label("Inbox", systemImage: "tray").tag(UUID?.none)
-                ForEach(categories) { category in
-                    Text(category.displayName).tag(UUID?.some(category.id))
+            ForEach(categories) { option in
+                Button {
+                    update { $0.categoryID = option.id }
+                } label: {
+                    if option.id == item.categoryID {
+                        Label(option.displayName, systemImage: "checkmark")
+                    } else {
+                        Text(option.displayName)
+                    }
                 }
             }
         } label: {
@@ -132,10 +139,6 @@ struct ItemEditor: View {
     }
 
     // MARK: Bindings
-
-    private var categoryBinding: Binding<UUID?> {
-        Binding(get: { item.categoryID }, set: { id in update { $0.categoryID = id } })
-    }
 
     /// The inline calendar edits the day and keeps the time.
     private var dayBinding: Binding<Date> {

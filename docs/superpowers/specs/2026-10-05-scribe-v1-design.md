@@ -374,3 +374,11 @@ Measured on a real iPhone + Mac; details in `docs/phase0-findings.md`. Decision:
 - **App Group (§4.2).** `group.com.noamchuri.scribe` works on macOS and iOS once registered in the developer portal; command-line automatic signing does not register App Groups.
 - **Deferred to Phase 4.** The Mac desktop widget reading the store (M7) and Control availability on macOS (§8, Q5).
 - **Open item.** Reset the CloudKit Development environment (removes the probe's `CD_ProbeNote` record type) before the first production schema deploy and before Phase 1 Task 10's record-type check.
+
+## 19. Post-Phase 2 Amendments (2026-10-05)
+
+Decided by the author after using the iPhone app:
+
+- **Every new item gets a real category (§8, §9.2).** The quick-add composer shows a row of category chips under the field; Add stays disabled until a category is chosen. A typed `#tag` picks it, a tapped chip overrides the tag, and the category on screen is preselected. A typed unknown `#name` offers "+ New category" (creating it picks it). The composer never offers or defaults to the Inbox; a preselected category that no longer exists leaves nothing picked.
+- **Inbox becomes a holding place, not a destination.** It holds items whose category was deleted (and, until Phase 4 decides otherwise, entries made without a category). Its row on the Categories screen shows only while something is in it. "Move to" and the inline editor's category picker don't list it.
+- **Siri / Shortcuts / Control adds (Phase 4)** follow the same rule: ask for a category (or infer one) instead of filing to the Inbox.

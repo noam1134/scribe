@@ -1,7 +1,8 @@
 import ScribeCore
 import SwiftUI
 
-/// Inbox, then categories with emoji, open count and color; inline add,
+/// Inbox (only while something is in it — new items always get a category,
+/// spec §19), then categories with emoji, open count and color; inline add,
 /// edit, reorder and delete with Undo (spec §9.2).
 struct CategoriesView: View {
     let store: any ItemStore
@@ -16,15 +17,18 @@ struct CategoriesView: View {
 
     var body: some View {
         let categories = store.categories
+        let inbox = store.items(.inbox)
         List {
-            NavigationLink(value: AppRouter.Destination.inbox) {
-                HStack {
-                    Label("Inbox", systemImage: "tray")
-                    Spacer()
-                    OpenCount(store.items(.inbox).filter { !$0.isDone }.count)
+            if !inbox.isEmpty {
+                NavigationLink(value: AppRouter.Destination.inbox) {
+                    HStack {
+                        Label("Inbox", systemImage: "tray")
+                        Spacer()
+                        OpenCount(inbox.filter { !$0.isDone }.count)
+                    }
                 }
+                .accessibilityIdentifier("inboxRow")
             }
-            .accessibilityIdentifier("inboxRow")
 
             Section("Categories") {
                 ForEach(categories) { category in

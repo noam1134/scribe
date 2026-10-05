@@ -13,11 +13,16 @@ final class ScribeUITests: XCTestCase {
         app.launch()
     }
 
+    /// Adds through the composer, filed into an "errands" category that the
+    /// first call creates — the composer needs a category (spec §19).
     private func quickAdd(_ text: String) {
         app.buttons["quickAddBar"].tap()
         let field = app.textFields["quickAddField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        field.typeText(text + "\n")
+        field.typeText(text + " #errands")
+        let create = app.buttons["newCategoryChip"]
+        if create.exists { create.tap() }
+        app.buttons["Add"].tap()
         XCTAssertTrue(field.waitForNonExistence(timeout: 5), "composer should close after adding")
     }
 
@@ -26,12 +31,18 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Categories"].exists)
     }
 
-    func testComposerAddsOnlyWithATitle() {
+    func testComposerNeedsATitleAndACategory() {
         app.buttons["quickAddBar"].tap()
         let field = app.textFields["quickAddField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Add"].isEnabled)
-        field.typeText("Buy milk tomorrow\n")
+        field.typeText("Buy milk tomorrow")
+        XCTAssertFalse(app.buttons["Add"].isEnabled, "no category picked yet")
+        XCTAssertTrue(app.staticTexts["categoryHint"].exists)
+        field.typeText(" #errands")
+        app.buttons["newCategoryChip"].tap()
+        XCTAssertTrue(app.buttons["Add"].isEnabled)
+        app.buttons["Add"].tap()
         XCTAssertTrue(field.waitForNonExistence(timeout: 5), "composer should close after adding")
     }
 
@@ -65,10 +76,11 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Pay rent now"].waitForExistence(timeout: 5))
     }
 
-    func testDeleteThenUndoInTheInbox() {
+    func testDeleteThenUndoInACategory() {
         quickAdd("Water plants")
         app.tabBars.buttons["Categories"].tap()
-        app.buttons["inboxRow"].tap()
+        XCTAssertFalse(app.buttons["inboxRow"].exists, "the Inbox only shows when something is in it")
+        app.buttons["category-errands"].tap()
         let row = app.staticTexts["Water plants"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.swipeLeft()

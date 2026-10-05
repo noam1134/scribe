@@ -2,7 +2,9 @@ import Foundation
 import Observation
 
 /// State behind every in-app quick-add field (spec §8): the text, the live
-/// parse, dismissible chips, the task/memo toggle and saving.
+/// parse, dismissible chips, the task/memo toggle, the category pick and
+/// saving. Every item gets a real category — the composer never files to the
+/// Inbox (spec §19).
 @MainActor
 @Observable
 public final class QuickAddComposer {
@@ -17,9 +19,11 @@ public final class QuickAddComposer {
     public var text: String = ""
     /// The ✓/📝 toggle. `!memo` typed in the text also makes a memo.
     public var isMemo: Bool = false
-    /// Category to use when the text has no `#tag` (e.g. composing from a
-    /// category screen or a category widget).
+    /// Category preselected by context (composing from a category screen or
+    /// a category link). Ignored once it no longer exists.
     public var defaultCategoryID: UUID?
+    /// The category chip the user tapped. Beats a typed `#tag` and the default.
+    public private(set) var selectedCategoryID: UUID?
     public private(set) var disabled: Set<TokenKind> = []
 
     @ObservationIgnored private let store: any ItemStore
@@ -43,9 +47,16 @@ public final class QuickAddComposer {
     /// read. Read it once per render (the separate properties each parse).
     public struct LiveParse: Equatable, Sendable {
         public let draft: ParsedDraft
+        /// Date, time and kind chips. The category has its own row.
         public let chips: [Chip]
+        /// Every category, for the sheet's category row.
+        public let categories: [CategorySnapshot]
+        /// Where the item would go: the tapped chip, else a matched `#tag`,
+        /// else the context default — nil until one of them names a
+        /// category that exists.
+        public let categoryID: UUID?
 
-        public var canSave: Bool { draft.isValid }
+        public var canSave: Bool { draft.isValid && categoryID != nil }
 
         /// Name of a typed `#tag` that matches no category, for a
         /// "+ New category" chip.
@@ -60,7 +71,12 @@ public final class QuickAddComposer {
         let date = now()
         let draft = parser.parse(text, categories: categories, now: date, disabled: disabled)
         let today = LocalDay(date, calendar: parser.calendar)
-        return LiveParse(draft: draft, chips: chips(for: draft, categories: categories, today: today))
+        return LiveParse(
+            draft: draft,
+            chips: chips(for: draft, today: today),
+            categories: categories,
+            categoryID: categoryID(for: draft, in: categories)
+        )
     }
 
     public var parsed: ParsedDraft { liveParse.draft }
@@ -77,30 +93,33 @@ public final class QuickAddComposer {
         disabled.insert(chip.kind)
     }
 
+    /// The user tapped a category chip.
+    public func select(_ categoryID: UUID) {
+        selectedCategoryID = categoryID
+    }
+
+    /// Turns a typed unknown `#tag` into a category and picks it.
     public func createUnknownCategory() throws {
         guard let name = unknownCategoryName else { return }
         let color = CategoryPalette.suggestedColorName(avoiding: store.categories.map(\.colorName))
-        try store.addCategory(CategoryDraft(name: name, colorName: color))
+        selectedCategoryID = try store.addCategory(CategoryDraft(name: name, colorName: color))
     }
 
-    /// Adds the item and clears the composer. Returns nil when there is no
-    /// title. An unknown `#tag` that wasn't turned into a category stays in
-    /// the title instead of being dropped. A default category that no longer
-    /// exists (deleted here or by sync, or a stale add link) means the Inbox.
+    /// Adds the item and clears the composer. Returns nil — and keeps the
+    /// text — when there is no title or no category yet. An unknown `#tag`
+    /// that wasn't turned into a category stays in the title.
     @discardableResult
     public func save() throws -> UUID? {
         let categories = store.categories
         let date = now()
         var draft = parser.parse(text, categories: categories, now: date, disabled: disabled)
+        guard let categoryID = categoryID(for: draft, in: categories) else { return nil }
         if case .unknown = draft.category {
             draft = parser.parse(text, categories: categories, now: date, disabled: disabled.union([.category]))
         }
         guard var item = draft.itemDraft else { return nil }
         if isMemo { item.kind = .memo }
-        if item.categoryID == nil, case .none = draft.category,
-           let defaultID = defaultCategoryID, categories.contains(where: { $0.id == defaultID }) {
-            item.categoryID = defaultID
-        }
+        item.categoryID = categoryID
         let id = try store.addItem(item)
         reset()
         return id
@@ -110,9 +129,19 @@ public final class QuickAddComposer {
         text = ""
         isMemo = false
         disabled = []
+        selectedCategoryID = nil
     }
 
-    private func chips(for draft: ParsedDraft, categories: [CategorySnapshot], today: LocalDay) -> [Chip] {
+    private func categoryID(for draft: ParsedDraft, in categories: [CategorySnapshot]) -> UUID? {
+        func exists(_ id: UUID?) -> UUID? {
+            id.flatMap { id in categories.contains { $0.id == id } ? id : nil }
+        }
+        if let picked = exists(selectedCategoryID) { return picked }
+        if case .matched(let tagged) = draft.category, let tagged = exists(tagged) { return tagged }
+        return exists(defaultCategoryID)
+    }
+
+    private func chips(for draft: ParsedDraft, today: LocalDay) -> [Chip] {
         var shownTime = false
         return draft.tokens.enumerated().compactMap { index, token in
             // "tonight at 9" is two time tokens but one time: show one chip.
@@ -120,17 +149,15 @@ public final class QuickAddComposer {
                 if shownTime { return nil }
                 shownTime = true
             }
-            guard let label = label(for: token, in: draft, categories: categories, today: today) else { return nil }
+            guard let label = label(for: token, in: draft, today: today) else { return nil }
             return Chip(id: index, kind: token.kind, label: label)
         }
     }
 
-    private func label(for token: RecognizedToken, in draft: ParsedDraft, categories: [CategorySnapshot], today: LocalDay) -> String? {
+    private func label(for token: RecognizedToken, in draft: ParsedDraft, today: LocalDay) -> String? {
         switch token.kind {
         case .category:
-            guard case .matched(let id) = draft.category,
-                  let category = categories.first(where: { $0.id == id }) else { return nil }
-            return category.emoji.isEmpty ? category.name : "\(category.emoji) \(category.name)"
+            return nil // shown by the category row
         case .kind:
             return "Memo"
         case .date:

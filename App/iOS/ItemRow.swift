@@ -98,7 +98,6 @@ struct ItemRow: View {
 
     @ViewBuilder private var menu: some View {
         Menu("Move to", systemImage: "folder") {
-            Button("Inbox", systemImage: "tray") { update { $0.categoryID = nil } }
             ForEach(categories) { category in
                 Button(category.displayName) { update { $0.categoryID = category.id } }
             }

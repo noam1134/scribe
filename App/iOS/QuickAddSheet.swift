@@ -2,7 +2,8 @@ import ScribeCore
 import SwiftUI
 
 /// The composer: one line of text, live chips for what the parser
-/// understood (tap one to undo it), task/memo toggle, Add (spec §8).
+/// understood (tap one to undo it), a row of categories to file it into,
+/// task/memo toggle, Add (spec §8, §19 — Add waits for a category).
 struct QuickAddSheet: View {
     @State private var composer: QuickAddComposer
     @Environment(\.dismiss) private var dismiss
@@ -44,16 +45,17 @@ struct QuickAddSheet: View {
                     .disabled(!live.canSave)
             }
             chips(live)
+            categoryRow(live)
         }
         .padding(20)
-        .presentationDetents([.height(150)])
+        .presentationDetents([.height(214)])
         .presentationDragIndicator(.visible)
         .onAppear { focused = true }
         .saveErrorAlert(router)
     }
 
     @ViewBuilder private func chips(_ live: QuickAddComposer.LiveParse) -> some View {
-        if !live.chips.isEmpty || live.unknownCategoryName != nil {
+        if !live.chips.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 GlassEffectContainer {
                     HStack(spacing: 8) {
@@ -64,12 +66,6 @@ struct QuickAddSheet: View {
                             .buttonStyle(.glass)
                             .accessibilityHint("Removes this and keeps the text in the title")
                         }
-                        if let name = live.unknownCategoryName {
-                            Button("New category \u{201C}\(name)\u{201D}", systemImage: "plus") {
-                                router.perform { try composer.createUnknownCategory() }
-                            }
-                            .buttonStyle(.glass)
-                        }
                     }
                 }
             }
@@ -78,6 +74,54 @@ struct QuickAddSheet: View {
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    /// Where the item goes. One tap picks; a typed `#tag` picks for you; a
+    /// typed unknown `#name` offers to create it. No Inbox here (spec §19).
+    @ViewBuilder private func categoryRow(_ live: QuickAddComposer.LiveParse) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(live.categories) { category in
+                        let picked = category.id == live.categoryID
+                        Button {
+                            composer.select(category.id)
+                        } label: {
+                            Label {
+                                Text(category.displayName)
+                                    .fontWeight(picked ? .semibold : .regular)
+                            } icon: {
+                                Image(systemName: picked ? "checkmark.circle.fill" : "circle.fill")
+                                    .foregroundStyle(category.color)
+                            }
+                        }
+                        .buttonStyle(.glass)
+                        .accessibilityAddTraits(picked ? .isSelected : [])
+                        .accessibilityIdentifier("pickCategory-\(category.name)")
+                    }
+                    if let name = live.unknownCategoryName {
+                        Button("New category \u{201C}\(name)\u{201D}", systemImage: "plus") {
+                            router.perform { try composer.createUnknownCategory() }
+                        }
+                        .buttonStyle(.glass)
+                        .accessibilityIdentifier("newCategoryChip")
+                    }
+                }
+            }
+            .scrollClipDisabled()
+            if live.categories.isEmpty && live.unknownCategoryName == nil {
+                hint("Type #name to create a category")
+            } else if live.draft.isValid && live.categoryID == nil {
+                hint("Pick a category")
+            }
+        }
+    }
+
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("categoryHint")
     }
 
     private func icon(for kind: TokenKind) -> String {
