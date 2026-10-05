@@ -4,7 +4,7 @@ A native notes app, written in Swift.
 
 ## Status
 
-Early setup. Design in progress.
+iPhone app usable (Phase 2): Upcoming, categories, inline editing, quick-add with English + Hebrew parsing, search, iCloud sync. Mac app, widgets, notifications and settings come next.
 
 ## Development
 
@@ -14,6 +14,14 @@ The Xcode project is generated with [XcodeGen](https://github.com/yonaskolb/Xcod
 brew install xcodegen
 xcodegen generate
 open Scribe.xcodeproj
+```
+
+### Tests
+
+```bash
+cd Core && swift test                      # Core unit tests
+xcodebuild -project Scribe.xcodeproj -scheme Scribe \
+  -destination "platform=iOS Simulator,name=iPhone 17 Pro" test   # UI smoke tests
 ```
 
 ### Signing and devices

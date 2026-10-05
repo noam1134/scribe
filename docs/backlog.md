@@ -2,19 +2,10 @@
 
 Items deferred during review. Each later phase plan must pick up the ones for its phase.
 
-## Phase 2 (iPhone app)
-
-- **Category delete undo (spec §13).** Add `restoreCategory(_:)` that re-inserts a deleted category with the same `id` and `sortIndex` and re-attaches its items; `deleteCategory` returns what's needed to undo.
-- **Who calls `ItemStore.refresh()`.** Wire it to CloudKit import events (`NSPersistentCloudKitContainer.eventChangedNotification` / `NSPersistentStoreRemoteChange`) and to the app becoming active (spec §12).
-- **Reordering.** Add an `onMove`-shaped `moveCategories(fromOffsets:toOffset:)`; `moveCategory(_:toIndex:)` takes the final position, which is off by one for SwiftUI drags downward.
-- **Unknown `#tag` in the composer.** `ParsedDraft.itemDraft` drops an unknown tag's text; the composer must re-parse with `disabled: [.category]` before saving if the user didn't create the category.
-- **Two `.time` chips.** "tonight" + an explicit time produce two chips of the same kind; key chips by position, not kind. Update the `QuickAddParser` doc comment ("each kind at most once" no longer holds for time).
-- **Store-open failure screen (spec §13)** replaces the temporary `fatalError` in `App/ScribeApp.swift`; delete `App/StoreSmokeView.swift`.
-- **Product questions for the author:** what "morning"/"evening"/"בבוקר"/"בערב" mean as quick-add times; whether a bare hour 1–7 ("ב-5") should mean afternoon; Hebrew spelling "בצהרים".
-- **Check iOS 27 Liquid Glass docs** before writing UI (spec §9.1).
-
 ## Phase 3 (Mac app)
 
+- **Mac UI** replaces the placeholder `App/macOS/RootView.swift`; reuse `ItemRow`-style rows via shared views where the platforms agree.
+- **Deep links on the Mac.** `ScribeApp` buffers every `scribe://` link in `StoreLoader.pendingLink`; only the iPhone `RootView` drains it. The Mac root must drain it too, or a stale link fires when the real Mac UI appears.
 - **Mac CloudKit.** After the 2026-10-05 Development reset, the Mac app's CloudKit setup fails with `CKErrorDomain 6` (service unavailable) while the iPhone works; clearing the app's CloudKit cache and restarting `cloudd` did not help. Try a Mac restart / iCloud sign-out-in first. Then re-run the cross-device check in both directions.
 - **Mac push.** The Mac app received no CloudKit pushes in Phase 0 even with `registerForRemoteNotifications()` (spec §18). Re-add the registration and investigate.
 - **KeyboardShortcuts** dependency must be macOS-only on the multiplatform target (`destinationFilters`).
