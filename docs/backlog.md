@@ -38,7 +38,7 @@ Items deferred during review. Each later phase plan must pick up the ones for it
 Ideas from the author, 2026-10-05.
 
 - **Talk to add, with the category worked out.** Saying or typing "remind me to fix the dates for our hotels in Thailand" adds "Fix the dates for our hotels" to Thailand. When no category clearly fits, ask which one, or offer to create one. Builds on Phase 4's Siri intent (`AddItemIntent`); Apple's on-device Foundation Models framework could pick the category privately, with the `#tag` parser as the fallback.
-- **Let Claude add tasks.** Lightest path: a small local MCP server on the Mac that runs a Scribe Shortcut (`shortcuts run`) or opens a `scribe://add?text=…` link (needs a `text` parameter on the add deep link) — no server needed. Later, the MCP can live on the Cloudflare Worker from spec §17 once the data moves there.
+- **Let Claude add tasks — from any device, iPhone included.** A remote MCP server on a Cloudflare Worker (Claude custom connectors work on iPhone, web and Mac). The data stays in iCloud; the Worker is a mailbox: the app publishes its category list, Claude reads it and drops new items in (asking in the chat when the category is unclear, or proposing a new one), and Scribe collects them on launch, background refresh or a silent push, then syncs them through iCloud as usual. If the data later moves to Cloudflare (spec §17), the same MCP talks to it directly. (A Mac-only local tool was rejected: it wouldn't work from the iPhone.)
 
 ## Before the first production CloudKit schema deploy
 
