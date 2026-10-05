@@ -70,6 +70,7 @@ struct ListsView: View {
             }
         }
         .navigationTitle("Lists")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .onChange(of: editedSectionID(in: sections)) { _, id in
             // The row being edited moved (its category chip): follow it.
@@ -294,12 +295,12 @@ private struct ListSectionHeader: View {
                 .accessibilityValue(isCollapsed ? "Collapsed" : "Expanded")
             if section.category == nil {
                 // Keeps the Inbox's count and chevron in line with the others.
-                Color.clear.frame(width: 44, height: 44)
+                Color.clear.frame(width: 36, height: 36)
             } else {
                 Button("Add to \(name)", systemImage: "plus", action: add)
                     .labelStyle(.iconOnly)
                     .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
+                    .frame(width: 36, height: 36)
                     .contentShape(.rect)
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
@@ -314,7 +315,7 @@ private struct ListSectionHeader: View {
             marker
             // Color.primary: in a header `.primary` is the header's grey.
             Text(section.category?.displayName ?? "Inbox")
-                .font(.title3.weight(.semibold))
+                .font(.headline)
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
             Spacer(minLength: 8)
@@ -328,7 +329,7 @@ private struct ListSectionHeader: View {
                 .foregroundStyle(Color.secondary)
                 .rotationEffect(.degrees(isCollapsed ? 0 : 90))
         }
-        .frame(minHeight: 44)
+        .frame(minHeight: 36)
         .contentShape(.rect)
     }
 

@@ -26,7 +26,7 @@ struct ItemRow: View {
     private var isExpanded: Bool { router.expandedItemID == item.id }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             marker
             if isExpanded {
                 ItemEditor(store: store, item: item, categories: categories, perform: router.perform) { setExpanded(false) }
@@ -64,6 +64,8 @@ struct ItemRow: View {
             Button("Delete", systemImage: "trash", role: .destructive) { delete() }
         }
         .contextMenu { menu }
+        // Tighter than the system's rows: more of the list on screen.
+        .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
     }
 
     @ViewBuilder private var marker: some View {
@@ -71,7 +73,8 @@ struct ItemRow: View {
         case .task:
             Button { toggleDone() } label: {
                 Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
+                    .font(.body)
+                    .imageScale(.large)
                     .foregroundStyle(category?.color ?? .accentColor)
             }
             .buttonStyle(.plain)
@@ -79,7 +82,8 @@ struct ItemRow: View {
             .accessibilityIdentifier("checkbox-\(item.title)")
         case .memo:
             Image(systemName: "note.text")
-                .font(.title3)
+                .font(.body)
+                .imageScale(.large)
                 .foregroundStyle(.tertiary)
         }
     }

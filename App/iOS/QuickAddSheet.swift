@@ -30,8 +30,8 @@ struct QuickAddSheet: View {
         // One parse per keystroke: every derived value comes from this.
         let live = composer.liveParse
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 10) {
                         Button {
                             composer.isMemo.toggle()
@@ -44,7 +44,7 @@ struct QuickAddSheet: View {
                         .accessibilityIdentifier("kindToggle")
 
                         TextField("Add a task or note", text: $composer.text)
-                            .font(.title3)
+                            .font(.body)
                             .focused($focus, equals: .title)
                             .submitLabel(.done)
                             .onSubmit(save)
@@ -76,7 +76,10 @@ struct QuickAddSheet: View {
                     .buttonStyle(.glass)
                     .keepsKeyboardOnTap()
             }
-            .padding(20)
+            // Small chips: the sheet stays a compact strip above the keyboard.
+            .font(.subheadline)
+            .controlSize(.small)
+            .padding(16)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -89,7 +92,7 @@ struct QuickAddSheet: View {
 
     private var kindIcon: some View {
         Image(systemName: composer.isMemo ? "note.text" : "checkmark.circle")
-            .font(.title2)
+            .font(.title3)
     }
 
     private func addButton(enabled: Bool) -> some View {

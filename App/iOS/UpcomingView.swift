@@ -36,5 +36,6 @@ struct UpcomingView: View {
             }
         }
         .navigationTitle("Upcoming")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -29,5 +29,6 @@ struct SearchView: View {
         }
         .searchable(text: $query)
         .navigationTitle("Search")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
