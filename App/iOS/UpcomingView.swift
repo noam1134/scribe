@@ -8,19 +8,20 @@ struct UpcomingView: View {
     var body: some View {
         let now = Date()
         let agenda = store.agenda(.all, now: now)
+        let categories = store.categories
         let labels = DueLabels()
         let today = LocalDay(now, calendar: labels.calendar)
         List {
             if !agenda.overdue.isEmpty {
                 Section {
-                    ForEach(agenda.overdue) { ItemRow(store: store, item: $0) }
+                    ForEach(agenda.overdue) { ItemRow(store: store, item: $0, categories: categories) }
                 } header: {
                     Text("Overdue").foregroundStyle(.red)
                 }
             }
             ForEach(agenda.days, id: \.day) { day in
                 Section(labels.dayTitle(day.day, today: today)) {
-                    ForEach(day.items) { ItemRow(store: store, item: $0, showsDay: false) }
+                    ForEach(day.items) { ItemRow(store: store, item: $0, categories: categories, showsDay: false) }
                 }
             }
         }

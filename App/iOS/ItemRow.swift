@@ -8,6 +8,8 @@ import SwiftUI
 struct ItemRow: View {
     let store: any ItemStore
     let item: ItemSnapshot
+    /// Read once by the list, not per row: each store read fetches items.
+    let categories: [CategorySnapshot]
     var showsDay = true
     var showsCategory = true
 
@@ -15,7 +17,7 @@ struct ItemRow: View {
     @Environment(UndoCenter.self) private var undo
 
     private var category: CategorySnapshot? {
-        item.categoryID.flatMap { id in store.categories.first { $0.id == id } }
+        item.categoryID.flatMap { id in categories.first { $0.id == id } }
     }
 
     private var isExpanded: Bool { router.expandedItemID == item.id }
@@ -24,7 +26,7 @@ struct ItemRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             marker
             if isExpanded {
-                ItemEditor(store: store, item: item) { setExpanded(false) }
+                ItemEditor(store: store, item: item, categories: categories) { setExpanded(false) }
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
@@ -97,7 +99,7 @@ struct ItemRow: View {
     @ViewBuilder private var menu: some View {
         Menu("Move to", systemImage: "folder") {
             Button("Inbox", systemImage: "tray") { update { $0.categoryID = nil } }
-            ForEach(store.categories) { category in
+            ForEach(categories) { category in
                 Button(category.displayName) { update { $0.categoryID = category.id } }
             }
         }

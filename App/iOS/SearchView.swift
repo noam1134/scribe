@@ -9,11 +9,13 @@ struct SearchView: View {
 
     var body: some View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let groups = SearchGroup.make(items: store.items(.search(trimmed)), categories: store.categories)
+        // No query, no fetch: the empty state needs nothing from the store.
+        let categories = trimmed.isEmpty ? [] : store.categories
+        let groups = trimmed.isEmpty ? [] : SearchGroup.make(items: store.items(.search(trimmed)), categories: categories)
         List {
             ForEach(groups) { group in
                 Section(group.category?.displayName ?? "Inbox") {
-                    ForEach(group.items) { ItemRow(store: store, item: $0, showsCategory: false) }
+                    ForEach(group.items) { ItemRow(store: store, item: $0, categories: categories, showsCategory: false) }
                 }
             }
         }

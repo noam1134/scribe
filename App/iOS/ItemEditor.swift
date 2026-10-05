@@ -7,6 +7,7 @@ import SwiftUI
 struct ItemEditor: View {
     let store: any ItemStore
     let item: ItemSnapshot
+    let categories: [CategorySnapshot]
     let close: () -> Void
 
     private enum InlinePicker { case date, time }
@@ -19,9 +20,10 @@ struct ItemEditor: View {
     private let calendar = Calendar.autoupdatingCurrent
     private var today: LocalDay { LocalDay(Date(), calendar: calendar) }
 
-    init(store: any ItemStore, item: ItemSnapshot, close: @escaping () -> Void) {
+    init(store: any ItemStore, item: ItemSnapshot, categories: [CategorySnapshot], close: @escaping () -> Void) {
         self.store = store
         self.item = item
+        self.categories = categories
         self.close = close
         _title = State(initialValue: item.title)
         _notes = State(initialValue: item.body)
@@ -95,11 +97,11 @@ struct ItemEditor: View {
     }
 
     private var categoryChip: some View {
-        let category = item.categoryID.flatMap { id in store.categories.first { $0.id == id } }
+        let category = item.categoryID.flatMap { id in categories.first { $0.id == id } }
         return Menu {
             Picker("Category", selection: categoryBinding) {
                 Label("Inbox", systemImage: "tray").tag(UUID?.none)
-                ForEach(store.categories) { category in
+                ForEach(categories) { category in
                     Text(category.displayName).tag(UUID?.some(category.id))
                 }
             }

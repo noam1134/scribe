@@ -16,6 +16,8 @@ struct QuickAddSheet: View {
     }
 
     var body: some View {
+        // One parse per keystroke: every derived value comes from this.
+        let live = composer.liveParse
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 Button {
@@ -39,9 +41,9 @@ struct QuickAddSheet: View {
 
                 Button("Add", action: save)
                     .buttonStyle(.glassProminent)
-                    .disabled(!composer.canSave)
+                    .disabled(!live.canSave)
             }
-            chips
+            chips(live)
         }
         .padding(20)
         .presentationDetents([.height(150)])
@@ -50,20 +52,19 @@ struct QuickAddSheet: View {
         .saveErrorAlert(router)
     }
 
-    @ViewBuilder private var chips: some View {
-        let chips = composer.chips
-        if !chips.isEmpty || composer.unknownCategoryName != nil {
+    @ViewBuilder private func chips(_ live: QuickAddComposer.LiveParse) -> some View {
+        if !live.chips.isEmpty || live.unknownCategoryName != nil {
             ScrollView(.horizontal, showsIndicators: false) {
                 GlassEffectContainer {
                     HStack(spacing: 8) {
-                        ForEach(chips) { chip in
+                        ForEach(live.chips) { chip in
                             Button { composer.dismiss(chip) } label: {
                                 Label(chip.label, systemImage: icon(for: chip.kind))
                             }
                             .buttonStyle(.glass)
                             .accessibilityHint("Removes this and keeps the text in the title")
                         }
-                        if let name = composer.unknownCategoryName {
+                        if let name = live.unknownCategoryName {
                             Button("New category \u{201C}\(name)\u{201D}", systemImage: "plus") {
                                 router.perform { try composer.createUnknownCategory() }
                             }

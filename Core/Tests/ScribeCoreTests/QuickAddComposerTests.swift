@@ -87,6 +87,35 @@ struct QuickAddComposerTests {
         #expect(store.item(fix)?.categoryID == home)
     }
 
+    nonisolated static let liveParseTexts: [String] = [
+        "",
+        "book flights fri 18:00 #thai",
+        "call Dan tonight at 9",
+        "visa #bulgaria",
+        "door code 4821 !memo",
+    ]
+
+    /// The sheet reads `liveParse` once per render; it must say exactly
+    /// what the separate properties say, before and after a chip is dismissed.
+    @Test(arguments: liveParseTexts)
+    func liveParseAgreesWithTheSeparateProperties(text: String) throws {
+        let (store, composer) = try make()
+        try store.addCategory(CategoryDraft(name: "Thailand", emoji: "🇹🇭"))
+        composer.text = text
+        func expectAgreement() {
+            let live = composer.liveParse
+            #expect(live.draft == composer.parsed)
+            #expect(live.chips == composer.chips)
+            #expect(live.canSave == composer.canSave)
+            #expect(live.unknownCategoryName == composer.unknownCategoryName)
+        }
+        expectAgreement()
+        if let first = composer.chips.first {
+            composer.dismiss(first)
+            expectAgreement()
+        }
+    }
+
     @Test func emptyTextCannotSave() throws {
         let (store, composer) = try make()
         composer.text = "   "

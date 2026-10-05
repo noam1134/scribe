@@ -39,33 +39,37 @@ public final class QuickAddComposer {
         self.now = now
     }
 
-    public var parsed: ParsedDraft {
-        parser.parse(text, categories: store.categories, now: now(), disabled: disabled)
-    }
+    /// Everything a composer UI shows, from one parse and one category
+    /// read. Read it once per render (the separate properties each parse).
+    public struct LiveParse: Equatable, Sendable {
+        public let draft: ParsedDraft
+        public let chips: [Chip]
 
-    public var canSave: Bool { parsed.isValid }
+        public var canSave: Bool { draft.isValid }
 
-    /// Name of a typed `#tag` that matches no category, for a
-    /// "+ New category" chip.
-    public var unknownCategoryName: String? {
-        if case .unknown(let name) = parsed.category { return name }
-        return nil
-    }
-
-    public var chips: [Chip] {
-        let draft = parsed
-        let today = LocalDay(now(), calendar: parser.calendar)
-        var shownTime = false
-        return draft.tokens.enumerated().compactMap { index, token in
-            // "tonight at 9" is two time tokens but one time: show one chip.
-            if token.kind == .time {
-                if shownTime { return nil }
-                shownTime = true
-            }
-            guard let label = label(for: token, in: draft, today: today) else { return nil }
-            return Chip(id: index, kind: token.kind, label: label)
+        /// Name of a typed `#tag` that matches no category, for a
+        /// "+ New category" chip.
+        public var unknownCategoryName: String? {
+            if case .unknown(let name) = draft.category { return name }
+            return nil
         }
     }
+
+    public var liveParse: LiveParse {
+        let categories = store.categories
+        let date = now()
+        let draft = parser.parse(text, categories: categories, now: date, disabled: disabled)
+        let today = LocalDay(date, calendar: parser.calendar)
+        return LiveParse(draft: draft, chips: chips(for: draft, categories: categories, today: today))
+    }
+
+    public var parsed: ParsedDraft { liveParse.draft }
+
+    public var canSave: Bool { liveParse.canSave }
+
+    public var unknownCategoryName: String? { liveParse.unknownCategoryName }
+
+    public var chips: [Chip] { liveParse.chips }
 
     /// The user tapped a chip: stop interpreting that kind of token; its
     /// text goes back into the title.
@@ -102,11 +106,24 @@ public final class QuickAddComposer {
         disabled = []
     }
 
-    private func label(for token: RecognizedToken, in draft: ParsedDraft, today: LocalDay) -> String? {
+    private func chips(for draft: ParsedDraft, categories: [CategorySnapshot], today: LocalDay) -> [Chip] {
+        var shownTime = false
+        return draft.tokens.enumerated().compactMap { index, token in
+            // "tonight at 9" is two time tokens but one time: show one chip.
+            if token.kind == .time {
+                if shownTime { return nil }
+                shownTime = true
+            }
+            guard let label = label(for: token, in: draft, categories: categories, today: today) else { return nil }
+            return Chip(id: index, kind: token.kind, label: label)
+        }
+    }
+
+    private func label(for token: RecognizedToken, in draft: ParsedDraft, categories: [CategorySnapshot], today: LocalDay) -> String? {
         switch token.kind {
         case .category:
             guard case .matched(let id) = draft.category,
-                  let category = store.categories.first(where: { $0.id == id }) else { return nil }
+                  let category = categories.first(where: { $0.id == id }) else { return nil }
             return category.emoji.isEmpty ? category.name : "\(category.emoji) \(category.name)"
         case .kind:
             return "Memo"

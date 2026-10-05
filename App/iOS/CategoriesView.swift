@@ -15,6 +15,7 @@ struct CategoriesView: View {
     @FocusState private var addFieldFocused: Bool
 
     var body: some View {
+        let categories = store.categories
         List {
             NavigationLink(value: AppRouter.Destination.inbox) {
                 HStack {
@@ -26,7 +27,7 @@ struct CategoriesView: View {
             .accessibilityIdentifier("inboxRow")
 
             Section("Categories") {
-                ForEach(store.categories) { category in
+                ForEach(categories) { category in
                     if editingID == category.id {
                         CategoryEditRow(store: store, category: category) { editingID = nil }
                     } else {

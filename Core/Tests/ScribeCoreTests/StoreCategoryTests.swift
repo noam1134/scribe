@@ -83,6 +83,21 @@ struct StoreCategoryTests {
         #expect(store.categories.first?.openCount == 2)
     }
 
+    /// A memo is never done (`ItemSnapshot.isDone`), even if a synced record
+    /// says otherwise, so it still counts as open.
+    @Test func openCountCountsAMemoMarkedDoneElsewhere() throws {
+        let container = try StoreFactory.inMemory()
+        let context = ModelContext(container)
+        let category = Category(name: "Work", sortIndex: 0)
+        let memo = Item(title: "door code", kind: .memo, isDone: true)
+        context.insert(category)
+        context.insert(memo)
+        memo.category = category
+        try context.save()
+        let store = SwiftDataItemStore(container: container, calendar: TestCalendar.jerusalem)
+        #expect(store.categories.first?.openCount == 1)
+    }
+
     /// Two devices can each create "Work" before they sync. Editing one of
     /// the twins must still work as long as the edit doesn't touch the name.
     @Test func editingASyncedTwinOnlyChecksWhatChanged() throws {

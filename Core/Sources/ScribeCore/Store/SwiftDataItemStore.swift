@@ -27,8 +27,8 @@ public final class SwiftDataItemStore: ItemStore {
         _ = revision
         let context = ModelContext(container)
         var openCounts: [UUID: Int] = [:]
-        for item in fetchItems(context).map(\.snapshot) where !item.isDone {
-            if let id = item.categoryID { openCounts[id, default: 0] += 1 }
+        for item in fetchOpenItems(context) {
+            if let id = item.category?.id { openCounts[id, default: 0] += 1 }
         }
         return fetchCategories(context).map { $0.snapshot(openCount: openCounts[$0.id] ?? 0) }
     }
@@ -261,6 +261,18 @@ public final class SwiftDataItemStore: ItemStore {
     private func fetchItems(_ context: ModelContext) -> [Item] {
         do {
             return try allItems(context)
+        } catch {
+            assertionFailure("Item fetch failed: \(error)")
+            return []
+        }
+    }
+
+    /// Open tasks and memos (`ItemSnapshot.isDone` is false for every memo):
+    /// the done items, which pile up over time, are never loaded.
+    private func fetchOpenItems(_ context: ModelContext) -> [Item] {
+        let memo = ItemKind.memo.rawValue
+        do {
+            return try context.fetch(FetchDescriptor<Item>(predicate: #Predicate { !$0.isDone || $0.kindRaw == memo }))
         } catch {
             assertionFailure("Item fetch failed: \(error)")
             return []
