@@ -166,7 +166,7 @@ private struct MenuBarContent: View {
             Divider()
 
             if let hotkey = QuickAddHotkey.status {
-                hotkeyNote(hotkey.shortcut, isTakenBySystem: hotkey.isTakenBySystem)
+                hotkeyNote(.menuBar(shortcut: hotkey.shortcut, isTakenBySystem: hotkey.isTakenBySystem))
             }
 
             HStack {
@@ -182,15 +182,15 @@ private struct MenuBarContent: View {
     }
 
     /// Where the quick-add shortcut is, and a warning when macOS uses the
-    /// same keys (it gets them first).
-    @ViewBuilder private func hotkeyNote(_ shortcut: String, isTakenBySystem: Bool) -> some View {
-        if isTakenBySystem {
-            Label("\(shortcut) is also a macOS shortcut, so quick add may not open. Turn that one off in System Settings › Keyboard › Keyboard Shortcuts.", systemImage: "exclamationmark.triangle")
+    /// same keys (it gets them first). Follows Settings' recorder.
+    @ViewBuilder private func hotkeyNote(_ note: QuickAddHotkeyNote) -> some View {
+        if note.isWarning {
+            Label(note.text, systemImage: "exclamationmark.triangle")
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
-            Text("\(shortcut) adds from anywhere")
+            Text(note.text)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -46,6 +46,9 @@ struct ScribeApp: App {
                 IntentLinkInbox.shared.link = nil
                 loader.pendingLink = link
             }
+            #if os(iOS) && DEBUG
+            .settingsTestEntry()
+            #endif
             .environment(loader)
         }
         #if os(iOS)
@@ -60,6 +63,7 @@ struct ScribeApp: App {
 
         #if os(macOS)
         MacMenuBarScene(loader: loader)
+        MacSettingsScene(loader: loader)
         #endif
     }
 }
