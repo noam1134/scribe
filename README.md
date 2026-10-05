@@ -4,9 +4,15 @@ A native notes app, written in Swift.
 
 ## Status
 
-iPhone app usable (Phase 2): Upcoming, categories, inline editing, quick-add with English + Hebrew parsing, search, iCloud sync. Mac app (Phase 3): sidebar + list with inline editing, keyboard shortcuts, search, a menu bar extra and the ⌃⇧Space quick-add panel. Widgets and settings come next.
+Built so far:
 
-Notifications (Phase 5): an alert at each timed item's due time with Done / +1 hour / Tomorrow, and a morning summary of the day; on by default on iPhone, off on Mac.
+- **iPhone app:** Upcoming, categories, inline editing, quick-add with English + Hebrew parsing, search, iCloud sync.
+- **Mac app:** sidebar + list with inline editing, keyboard shortcuts, search, a menu bar extra and the ⌃⇧Space quick-add panel.
+- **Widgets:** an Upcoming widget (iPhone home and lock screen, Mac desktop, optionally one category) with checkboxes, plus an "Add to Scribe" Control.
+- **Siri and Shortcuts:** "Add to Scribe", which asks for a category when the text has no `#tag`.
+- **Notifications:** an alert at each timed item's due time, with Done / +1 hour / Tomorrow, and a morning summary of the day. On by default on iPhone, off on Mac.
+
+Settings come next.
 
 ## Development
 
