@@ -10,8 +10,8 @@ struct MacSettingsScene: Scene {
     var body: some Scene {
         Settings {
             SettingsView(loader: loader)
-                .frame(width: 480)
-                .frame(minHeight: 420, idealHeight: 640)
+                // A fixed window, like most Settings windows; the form scrolls.
+                .frame(width: 480, height: 640)
                 .onAppear {
                     // Export needs the store, and Settings can open before any window did.
                     if case .loading = loader.state { loader.load() }
@@ -53,3 +53,25 @@ struct QuickAddHotkeySection: View {
         .onAppear { QuickAddHotkey.refreshStatus() }
     }
 }
+
+#if DEBUG
+extension View {
+    /// `-uiTesting -showSettings` opens Settings at launch, for screenshots
+    /// of a background-launched build.
+    func settingsLaunchHook() -> some View {
+        modifier(SettingsLaunchHook())
+    }
+}
+
+private struct SettingsLaunchHook: ViewModifier {
+    @Environment(\.openSettings) private var openSettings
+
+    func body(content: Content) -> some View {
+        content.task {
+            guard SettingsDemo.showsSettingsAtLaunch else { return }
+            try? await Task.sleep(for: .seconds(1))
+            openSettings()
+        }
+    }
+}
+#endif

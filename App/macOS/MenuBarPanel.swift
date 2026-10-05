@@ -42,6 +42,9 @@ private struct MenuBarLabel: View {
                 guard link != nil, !MacWindows.hasMainWindow else { return }
                 MacWindows.showMain()
             }
+            #if DEBUG
+            .settingsLaunchHook()
+            #endif
     }
 }
 
