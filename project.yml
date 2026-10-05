@@ -27,6 +27,7 @@ targets:
         destinationFilters: [iOS]
       - path: App/macOS
         destinationFilters: [macOS]
+      - path: Intents
     dependencies:
       - package: ScribeCore
       - target: ScribeWidgets
@@ -37,7 +38,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
-        UIBackgroundModes: [remote-notification]
+        UIBackgroundModes: [remote-notification, fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.noamchuri.scribe.refresh]
         CFBundleURLTypes:
           - CFBundleURLName: com.noamchuri.scribe
             CFBundleURLSchemes: [scribe]
@@ -54,6 +56,8 @@ targets:
     supportedDestinations: [iOS, macOS]
     sources:
       - Widgets
+      - Intents
+      - path: App/Shared/Styling.swift
     dependencies:
       - package: ScribeCore
     info:

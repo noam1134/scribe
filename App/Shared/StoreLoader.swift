@@ -21,17 +21,17 @@ final class StoreLoader {
     var pendingLink: DeepLink?
 
     @ObservationIgnored private var refresher: SyncRefresher?
+    @ObservationIgnored private var widgetRefresher: WidgetRefresher?
 
     /// UI tests launch with `-uiTesting`: a fresh in-memory store, no iCloud.
     static var isUITesting: Bool { CommandLine.arguments.contains("-uiTesting") }
 
     func load() {
         do {
-            let container = Self.isUITesting
-                ? try StoreFactory.inMemory()
-                : try StoreFactory.shared(syncsWithCloudKit: true)
-            let store = SwiftDataItemStore(container: container)
+            // One store per process, shared with App Intents running in the app.
+            let store = try SharedStore.open()
             refresher = SyncRefresher(store: store)
+            widgetRefresher = WidgetRefresher()
             state = .ready(store)
         } catch {
             state = .failed(String(describing: error))
