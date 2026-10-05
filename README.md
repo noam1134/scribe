@@ -26,7 +26,7 @@ xcodebuild -project Scribe.xcodeproj -scheme Scribe \
   -destination "platform=iOS Simulator,name=iPhone 17 Pro" test   # UI smoke tests
 ```
 
-`NotificationUITests` waits for real notifications (about five minutes, and it fails in the minutes before midnight); add `-skip-testing:ScribeUITests/NotificationUITests` for a quick run.
+`NotificationUITests` waits for real notifications (about five minutes; fails in the minutes before midnight), so it is skipped unless you prefix the command with `TEST_RUNNER_SCRIBE_RUN_NOTIFICATION_UI_TESTS=1`.
 
 ### Signing and devices
 

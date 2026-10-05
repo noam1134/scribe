@@ -4,14 +4,22 @@ import XCTest
 /// its Done button completes the task while the app is in the background,
 /// tapping an alert opens its item, and the morning summary (moved to five
 /// minutes after launch) counts what is left and opens Upcoming. Slow — it
-/// waits for the clock, about five minutes. The first run answers the
-/// permission alert. (Breaks if run in the minutes before midnight.)
+/// waits for the clock, about five minutes — so it only runs when asked:
+///
+///     TEST_RUNNER_SCRIBE_RUN_NOTIFICATION_UI_TESTS=1 xcodebuild … test
+///
+/// The first run answers the permission alert. (Breaks if run in the minutes
+/// before midnight.)
 @MainActor
 final class NotificationUITests: XCTestCase {
     private var app: XCUIApplication!
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
     override func setUp() async throws {
+        try XCTSkipUnless(
+            ProcessInfo.processInfo.environment["SCRIBE_RUN_NOTIFICATION_UI_TESTS"] == "1",
+            "Slow (≈5 min); set TEST_RUNNER_SCRIBE_RUN_NOTIFICATION_UI_TESTS=1 to run"
+        )
         continueAfterFailure = false
         app = XCUIApplication()
         // A minute clear of both alerts, which are due 2 and 3 minutes after they're added.
