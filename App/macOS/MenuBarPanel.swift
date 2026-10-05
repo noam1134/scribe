@@ -16,9 +16,10 @@ struct MacMenuBarScene: Scene {
     }
 }
 
-/// The menu bar icon. It is always there, so it also opens a main window
-/// for a link that arrives while every window is closed — a notification
-/// tap, an App Intent — and the window's root takes the link from there.
+/// The menu bar icon. It is always there, so it hands `MacWindows` the
+/// action that opens a main window, and opens one for a link that arrives
+/// while every window is closed — a notification tap, an App Intent; the
+/// window's root takes the link from there.
 private struct MenuBarLabel: View {
     let loader: StoreLoader
 
@@ -27,9 +28,10 @@ private struct MenuBarLabel: View {
     var body: some View {
         Image(systemName: "checklist")
             .accessibilityLabel("Scribe")
+            .onAppear { MacWindows.openWindow = openWindow }
             .onChange(of: loader.pendingLink) { _, link in
                 guard link != nil, !MacWindows.hasMainWindow else { return }
-                openWindow(id: MacWindows.mainID)
+                MacWindows.showMain()
             }
     }
 }
@@ -42,7 +44,6 @@ private struct MenuBarLabel: View {
 struct MenuBarPanel: View {
     let loader: StoreLoader
 
-    @Environment(\.openWindow) private var openWindow
     @State private var previousApp: NSRunningApplication?
 
     var body: some View {
@@ -79,10 +80,10 @@ struct MenuBarPanel: View {
         previousApp.activate(from: .current, options: [])
     }
 
-    /// Brings the main window forward as it was.
+    /// Brings the main window forward as it was (opening one if needed).
     private func showScribe() {
         previousApp = nil
-        MacWindows.showMain(openWindow)
+        MacWindows.showMain()
     }
 
     /// Shows an item (or the agenda) in the main window.
@@ -240,37 +241,5 @@ private struct MenuBarContent: View {
             message = error.localizedDescription
             messageIsError = true
         }
-    }
-}
-
-enum MacWindows {
-    /// The id of the main `WindowGroup` in `ScribeApp`.
-    static let mainID = "main"
-
-    @MainActor
-    private static var mainWindow: NSWindow? {
-        NSApp.windows.first { window in
-            window.identifier?.rawValue.hasPrefix(mainID) == true && (window.isVisible || window.isMiniaturized)
-        }
-    }
-
-    @MainActor
-    static var hasMainWindow: Bool { mainWindow != nil }
-
-    /// Brings the main window forward, or opens one if they were all closed.
-    @MainActor
-    static func showMain(_ openWindow: OpenWindowAction) {
-        NSApp.activate()
-        if !bringMainForward() { openWindow(id: mainID) }
-    }
-
-    /// Brings an open (or minimized) main window forward; false if none.
-    @MainActor
-    @discardableResult
-    static func bringMainForward() -> Bool {
-        guard let main = mainWindow else { return false }
-        if main.isMiniaturized { main.deminiaturize(nil) }
-        main.makeKeyAndOrderFront(nil)
-        return true
     }
 }

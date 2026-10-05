@@ -17,7 +17,7 @@ final class StoreLoader {
 
     /// A `scribe://` link that arrived before or while the UI was getting
     /// ready — a link can cold-launch the app while the store is still
-    /// opening. The iPhone `RootView` takes it once it appears.
+    /// opening. The iPhone and Mac `RootView`s take it once they appear.
     var pendingLink: DeepLink?
 
     @ObservationIgnored private var refresher: SyncRefresher?

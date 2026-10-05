@@ -68,11 +68,9 @@ final class QuickAddPanelController {
     }
 
     /// "Open Scribe" from the store-problem panel: the window shows the
-    /// error and Retry. With every window closed, a pending link makes the
-    /// menu bar open one.
+    /// error and Retry.
     private func openMainWindow() {
-        NSApp.activate()
-        if !MacWindows.bringMainForward() { loader.pendingLink = .upcoming }
+        MacWindows.showMain()
     }
 
     /// Esc arrives as a key-down with key code 53: `.onExitCommand` never

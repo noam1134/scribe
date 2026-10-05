@@ -1,3 +1,4 @@
+import AppKit
 import ScribeCore
 import SwiftUI
 
@@ -61,8 +62,11 @@ struct RootView: View {
             guard let link else { return }
             loader.pendingLink = nil
             router.open(link)
-            MacWindows.showMain(openWindow)
+            // This root has its window: activate and bring it forward.
+            NSApp.activate()
+            MacWindows.bringMainForward()
         }
+        .onAppear { MacWindows.mainWindowAppeared(openWindow) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.refresh() }
         }
