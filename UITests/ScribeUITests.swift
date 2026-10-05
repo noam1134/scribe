@@ -163,7 +163,7 @@ final class ScribeUITests: XCTestCase {
 
     func testSectionPlusPreselectsItsCategory() {
         addCategory("Work")
-        XCTAssertTrue(app.staticTexts["No items"].exists)
+        XCTAssertTrue(app.buttons["addFirst-Work"].exists)
         let header = app.buttons["section-Work"]
         header.tap()
         XCTAssertEqual(header.value as? String, "Collapsed")
@@ -177,7 +177,19 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Draft the plan"].waitForExistence(timeout: 5), "adding through + opens the section")
         XCTAssertEqual(header.value as? String, "Expanded")
-        XCTAssertFalse(app.staticTexts["No items"].exists)
+        XCTAssertFalse(app.buttons["addFirst-Work"].exists)
+    }
+
+    func testEmptyCategoryOffersItsFirstItem() {
+        addCategory("Garden")
+        app.buttons["addFirst-Garden"].tap()
+        let field = app.textFields["quickAddField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["pickCategory-Garden"].isSelected)
+        field.typeText("Plant tomatoes\n")
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Plant tomatoes"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["addFirst-Garden"].exists)
     }
 
     func testShowCompletedRevealsDoneItems() {

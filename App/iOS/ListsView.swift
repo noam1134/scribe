@@ -96,9 +96,14 @@ struct ListsView: View {
                 CategoryEditRow(store: store, category: category) { editingCategoryID = nil }
             }
             if !isCollapsed {
-                if section.items.isEmpty {
-                    Text("No items")
-                        .foregroundStyle(.tertiary)
+                if section.items.isEmpty, let category = section.category {
+                    Button {
+                        router.compose(in: category.id)
+                    } label: {
+                        Label("Add the first item", systemImage: "plus.circle")
+                            .foregroundStyle(.tint)
+                    }
+                    .accessibilityIdentifier("addFirst-\(category.name)")
                 }
                 ForEach(section.items) { item in
                     ItemRow(
