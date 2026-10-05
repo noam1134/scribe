@@ -10,7 +10,6 @@ Deferred in the Phase 2 (iPhone app) reviews.
 
 - A time-only phrase that rolls to tomorrow shows only "09:00" on its chip — label it "Tomorrow · 09:00" when no date token was typed; "this morning"/"this evening" roll to tomorrow once passed (ask the author).
 - A dismissed chip disables that kind for the rest of the composition (re-enable it when the dismissed text is gone? Product call).
-- The composer's compact height (252 pt since the Notes field) clips at accessibility text sizes.
 - The kind toggle ignores a typed `!memo`, and its accessibility label lacks a value.
 - An add link doesn't retarget an already-open composer.
 - A half-typed draft is lost if iOS terminates the app.
@@ -57,11 +56,10 @@ Deferred in the Phase 2 (iPhone app) reviews.
 
 From the Lists change (spec §20, plan `2026-10-05-lists-home.md`).
 
-- Ticking a task with Show Completed off hides it at once, as on Upcoming. Consider a short linger or an Undo toast.
-- A header's long press opens a confirmation dialog (Rename / Delete), not a context menu: SwiftUI gives only list rows context menus. A UIKit `UIContextMenuInteraction` on the header could replace it.
-- A tap outside a text field closes the keyboard even when it lands on a button or chip (e.g. the composer's category chips) — the button still works. Judge the feel on the device.
+- A tap outside a text field closes the keyboard even when it lands on a button (except the composer's own controls). Judge the feel on the device.
 - Collapse state keeps the ids of deleted categories (so Undo restores the state); they are never pruned.
-- Lists reads every item, done ones included, on each render. Fine at personal scale; revisit if the store grows into the thousands.
+- Lists re-fetches every item, done ones included, on every render — every tap-to-edit. When Show Completed is off, fetch open items only plus the kept (edited) item.
+- Moving an item with "Move to" opens its new Lists section even when done from Upcoming or Search.
 - The demo data's emoji draw as missing-glyph boxes in the iOS 27 simulator (Upcoming too); check on the device.
 
 ## Phase 3 (Mac app)
@@ -112,7 +110,6 @@ From the Phase 4 review.
 
 Settings shipped (spec §21). Still open:
 
-- **Placement.** Put `SettingsButton` in the toolbar of the iPhone's Lists tab (it replaces Categories); then `SettingsUITests` can tap it there and the DEBUG `-settingsButton` overlay can go.
 - **Device checks** (the simulator has no iCloud and the Mac UI wasn't driven):
   - Signed-in iPhone and Mac: "Syncing with iCloud"; "Last synced" moves after an edit here (export) and after a change from the other device (import).
   - Airplane Mode, then an edit: the "Offline — …" line; it clears once an upload succeeds.
