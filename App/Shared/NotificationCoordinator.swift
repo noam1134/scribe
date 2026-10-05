@@ -85,6 +85,8 @@ final class NotificationCoordinator: NSObject {
     }
 
     func requestPermission() async {
+        // Settings' switch in a UI-test run: no system prompt over the tests.
+        guard Self.isActiveInThisRun else { return }
         await scheduler.requestPermission()
     }
 

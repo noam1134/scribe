@@ -337,6 +337,26 @@ struct NotificationSchedulerTests {
         #expect(NotificationSettings(from: defaults).isEnabled == false)
     }
 
+    /// Settings' time picker and summary switch (Phase 6) re-plan at once.
+    @Test func summaryTimeAndSwitchReplan() async throws {
+        let store = try makeStore(clock: clock)
+        try store.addItem(ItemDraft(title: "Call Dan", due: DueDate(day: LocalDay(2026, 10, 6))))
+        let center = FakeNotificationCenter()
+        let scheduler = makeScheduler(center: center, opener: Opener(store))
+        await scheduler.rescheduleNow()
+        #expect(center.pendingRequests["summary.2026-10-06"]?.trigger.hour == 9)
+
+        scheduler.settings.setSummaryTime(TestCalendar.date(2026, 10, 5, 7, 30), calendar: TestCalendar.jerusalem)
+        await scheduler.waitUntilIdle()
+        let moved = center.pendingRequests["summary.2026-10-06"]?.trigger
+        #expect(moved?.hour == 7)
+        #expect(moved?.minute == 30)
+
+        scheduler.settings.morningSummaryEnabled = false
+        await scheduler.waitUntilIdle()
+        #expect(center.pendingIDs.isEmpty)
+    }
+
     // MARK: Actions
 
     /// A button tapped while Scribe wasn't running: the store opens, the

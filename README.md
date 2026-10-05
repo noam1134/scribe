@@ -11,8 +11,7 @@ Built so far:
 - **Widgets:** an Upcoming widget (iPhone home and lock screen, Mac desktop, optionally one category) with checkboxes, plus an "Add to Scribe" Control.
 - **Siri and Shortcuts:** "Add to Scribe", which asks for a category when the text has no `#tag`.
 - **Notifications:** an alert at each timed item's due time, with Done / +1 hour / Tomorrow, and a morning summary of the day. On by default on iPhone, off on Mac.
-
-Settings come next.
+- **Settings:** iCloud sync status ("Last synced …", and what to do when sync is off), this device's notifications and morning summary time, Export All as JSON, the version, and on the Mac the quick-add shortcut recorder.
 
 ## Development
 

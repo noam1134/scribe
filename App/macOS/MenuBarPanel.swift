@@ -29,10 +29,22 @@ private struct MenuBarLabel: View {
         Image(systemName: "checklist")
             .accessibilityLabel("Scribe")
             .onAppear { MacWindows.openWindow = openWindow }
+            .onChange(of: IntentLinkInbox.shared.link) { _, link in
+                // An intent that brought the app forward (the Control, the
+                // small widget's "+"): only a main window's root takes these,
+                // so with every window closed the link would wait forever.
+                // At launch the first window's root takes it instead.
+                guard let link else { return }
+                IntentLinkInbox.shared.link = nil
+                loader.pendingLink = link
+            }
             .onChange(of: loader.pendingLink) { _, link in
                 guard link != nil, !MacWindows.hasMainWindow else { return }
                 MacWindows.showMain()
             }
+            #if DEBUG
+            .settingsLaunchHook()
+            #endif
     }
 }
 
@@ -166,7 +178,7 @@ private struct MenuBarContent: View {
             Divider()
 
             if let hotkey = QuickAddHotkey.status {
-                hotkeyNote(hotkey.shortcut, isTakenBySystem: hotkey.isTakenBySystem)
+                hotkeyNote(.menuBar(shortcut: hotkey.shortcut, isTakenBySystem: hotkey.isTakenBySystem))
             }
 
             HStack {
@@ -182,15 +194,15 @@ private struct MenuBarContent: View {
     }
 
     /// Where the quick-add shortcut is, and a warning when macOS uses the
-    /// same keys (it gets them first).
-    @ViewBuilder private func hotkeyNote(_ shortcut: String, isTakenBySystem: Bool) -> some View {
-        if isTakenBySystem {
-            Label("\(shortcut) is also a macOS shortcut, so quick add may not open. Turn that one off in System Settings › Keyboard › Keyboard Shortcuts.", systemImage: "exclamationmark.triangle")
+    /// same keys (it gets them first). Follows Settings' recorder.
+    @ViewBuilder private func hotkeyNote(_ note: QuickAddHotkeyNote) -> some View {
+        if note.isWarning {
+            Label(note.text, systemImage: "exclamationmark.triangle")
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
-            Text("\(shortcut) adds from anywhere")
+            Text(note.text)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
