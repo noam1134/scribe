@@ -5,27 +5,52 @@ import SwiftUI
 /// glass chips for date, category and kind. Text saves on Return (which also
 /// closes the editor), when the editor goes away and when the app leaves the
 /// foreground; chips save immediately. Only the text fields the user changed
-/// are written (`ItemTextDraft`).
+/// are written (`ItemTextDraft`). On the Mac the title is focused when the
+/// editor opens and Esc closes it (spec §9.3).
 struct ItemEditor: View {
+    /// Writes an edit to the item; the name is for Edit › Undo.
+    typealias Save = @MainActor (_ id: UUID, _ actionName: String, _ edit: (inout ItemEdit) -> Void) throws -> Void
+
     let store: any ItemStore
     let item: ItemSnapshot
     let categories: [CategorySnapshot]
+    /// Runs a store write and shows a refusal (each platform's alert).
+    let perform: @MainActor (() throws -> Void) -> Void
+    /// nil writes straight to the store (the iPhone); the Mac makes every
+    /// write undoable.
+    let save: Save?
+    /// Whether to put the caret in the title now; asked when the editor
+    /// appears. Once per opening, so a rebuilt editor doesn't take focus.
+    let takeTitleFocus: (@MainActor () -> Bool)?
     let close: () -> Void
 
     private enum InlinePicker { case date, time }
 
-    @Environment(AppRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
     @State private var text: ItemTextDraft
     @State private var picker: InlinePicker?
+    #if os(macOS)
+    @FocusState private var titleFocused: Bool
+    #endif
 
     private let calendar = Calendar.autoupdatingCurrent
     private var today: LocalDay { LocalDay(Date(), calendar: calendar) }
 
-    init(store: any ItemStore, item: ItemSnapshot, categories: [CategorySnapshot], close: @escaping () -> Void) {
+    init(
+        store: any ItemStore,
+        item: ItemSnapshot,
+        categories: [CategorySnapshot],
+        perform: @escaping @MainActor (() throws -> Void) -> Void,
+        save: Save? = nil,
+        takeTitleFocus: (@MainActor () -> Bool)? = nil,
+        close: @escaping () -> Void
+    ) {
         self.store = store
         self.item = item
         self.categories = categories
+        self.perform = perform
+        self.save = save
+        self.takeTitleFocus = takeTitleFocus
         self.close = close
         _text = State(initialValue: ItemTextDraft(title: item.title, notes: item.body))
     }
@@ -41,6 +66,9 @@ struct ItemEditor: View {
                     close()
                 }
                 .accessibilityIdentifier("titleField")
+                #if os(macOS)
+                .focused($titleFocused)
+                #endif
             TextField("Notes", text: $text.notes, axis: .vertical)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -61,10 +89,7 @@ struct ItemEditor: View {
                 DatePicker("Date", selection: dayBinding, displayedComponents: .date)
                     .datePickerStyle(.graphical)
             case .time:
-                DatePicker("Time", selection: timeBinding, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    .frame(maxWidth: .infinity)
+                timePicker
             case nil:
                 EmptyView()
             }
@@ -74,6 +99,31 @@ struct ItemEditor: View {
             // The app may be ended in the background: keep what was typed.
             if phase != .active { saveText() }
         }
+        #if os(macOS)
+        // After this pass, not inside it: the row is still being built by
+        // the list's table view.
+        .task {
+            if takeTitleFocus?() == true { titleFocused = true }
+        }
+        .onExitCommand {
+            finish()
+            close()
+        }
+        #endif
+    }
+
+    @ViewBuilder private var timePicker: some View {
+        #if os(iOS)
+        DatePicker("Time", selection: timeBinding, displayedComponents: .hourAndMinute)
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+        #else
+        DatePicker("Time", selection: timeBinding, displayedComponents: .hourAndMinute)
+            .datePickerStyle(.stepperField)
+            .labelsHidden()
+            .frame(maxWidth: .infinity, alignment: .leading)
+        #endif
     }
 
     // MARK: Chips
@@ -108,7 +158,7 @@ struct ItemEditor: View {
         return Menu {
             ForEach(categories) { option in
                 Button {
-                    update { $0.categoryID = option.id }
+                    update("Move to \u{201C}\(option.name)\u{201D}") { $0.categoryID = option.id }
                 } label: {
                     if option.id == item.categoryID {
                         Label(option.displayName, systemImage: "checkmark")
@@ -132,7 +182,7 @@ struct ItemEditor: View {
     private var kindChip: some View {
         Button(item.kind == .task ? "Task" : "Memo",
                systemImage: item.kind == .task ? "checkmark.circle" : "note.text") {
-            update { $0.kind = item.kind == .task ? .memo : .task }
+            update(item.kind == .task ? "Make Memo" : "Make Task") { $0.kind = item.kind == .task ? .memo : .task }
         }
         .buttonStyle(.glass)
         .accessibilityIdentifier("kindChip")
@@ -175,28 +225,39 @@ struct ItemEditor: View {
     private func saveText() {
         let changes = text.changes
         guard !changes.isEmpty else { return }
-        write(changes) { _ in }
+        write(changes, actionName: "Edit Item") { _ in }
     }
 
     private func setDue(_ due: DueDate?) {
         guard due != item.due else { return }
-        update { $0.due = due }
+        let actionName = switch (item.due, due) {
+        case (_, nil): "Remove Date"
+        case (nil, _): "Add Date"
+        case let (old?, new?) where old.day == new.day: new.minute == nil ? "Remove Time" : "Change Time"
+        default: "Change Date"
+        }
+        update(actionName) { $0.due = due }
     }
 
     /// A chip write also carries the text the user changed: a date or kind
     /// change can move the row to another section, which rebuilds this
     /// editor from the store — unsaved text would otherwise come back stale.
-    private func update(_ edit: (inout ItemEdit) -> Void) {
-        write(text.changes, edit)
+    private func update(_ actionName: String, _ edit: (inout ItemEdit) -> Void) {
+        write(text.changes, actionName: actionName, edit)
     }
 
-    private func write(_ changes: ItemTextDraft.Changes, _ edit: (inout ItemEdit) -> Void) {
+    private func write(_ changes: ItemTextDraft.Changes, actionName: String, _ edit: (inout ItemEdit) -> Void) {
         // Deleted (swiped away, or on another device): nothing to save into.
         guard store.item(item.id) != nil else { return }
-        router.perform {
-            try store.updateItem(item.id) {
+        perform {
+            let combined: (inout ItemEdit) -> Void = {
                 changes.apply(to: &$0)
                 edit(&$0)
+            }
+            if let save {
+                try save(item.id, actionName, combined)
+            } else {
+                try store.updateItem(item.id, combined)
             }
             text.didSave(changes)
         }

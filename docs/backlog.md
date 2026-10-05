@@ -58,13 +58,20 @@ Deferred in the Phase 2 (iPhone app) reviews.
 
 ## Phase 3 (Mac app)
 
-- **Mac UI** replaces the placeholder `App/macOS/RootView.swift`; reuse `ItemRow`-style rows via shared views where the platforms agree.
-- **Deep links on the Mac.** `ScribeApp` buffers every `scribe://` link in `StoreLoader.pendingLink`; only the iPhone `RootView` drains it. The Mac root must drain it too, or a stale link fires when the real Mac UI appears.
+The Mac UI, deep-link drain, activation refresh, `KeyboardShortcuts` (macOS-only), the macOS runpath and the push registration landed in Phase 3. Still open:
+
 - **Mac CloudKit.** After the 2026-10-05 Development reset, the Mac app's CloudKit setup fails with `CKErrorDomain 6` (service unavailable) while the iPhone works; clearing the app's CloudKit cache and restarting `cloudd` did not help. Try a Mac restart / iCloud sign-out-in first. Then re-run the cross-device check in both directions.
-- **Mac push.** The Mac app received no CloudKit pushes in Phase 0 even with `registerForRemoteNotifications()` (spec §18). Re-add the registration and investigate.
-- **KeyboardShortcuts** dependency must be macOS-only on the multiplatform target (`destinationFilters`).
-- **Runpath.** Add `@executable_path/../Frameworks` for macOS before embedding any dynamic framework.
-- **Activation refresh.** The Mac root also needs the `scenePhase` → `store.refresh()` activation hook the iPhone `RootView` has.
+- **Mac push.** `registerForRemoteNotifications()` is back; registration, every push and every CloudKit setup/import/export is logged (`log stream --level info --predicate 'subsystem == "com.noamchuri.scribe"'`, categories `push`, `sync`, `hotkey`). A signed run must show whether pushes reach the app and whether an import follows (spec §18).
+- **Hotkey is ⌃⇧Space** (spec §8, §19: ⌃⌥Space is macOS's "Select next source in Input menu" on the author's Mac). The menu bar panel warns if the shortcut is also a macOS one. Phase 6's recorder can change it.
+- **Activation.** Opening the menu bar extra activates the app (spec §18), which brings the main window forward behind it; closing hands activation back unless the user went on in Scribe. The hotkey panel never activates the app. Judge the feel on the author's Mac.
+- A menu path back to a closed main window (New Item could open the main window when none is open).
+- `handlesExternalEvents` is only on the ready root; add it to the loading and failed roots too.
+- Check how the expanded editor looks over the key window's selection highlight.
+- Open on key-down (`onKeyDown`) for a snappier hotkey panel.
+- Make window quick-adds undoable (⌘Z after an add).
+- Upcoming and the menu bar agenda don't roll over at midnight while open (as on the iPhone).
+- The category editor in the sidebar closes only with Return or Esc, not by clicking away.
+- No macOS UI tests: driving the Mac UI takes over the live keyboard and mouse. Candidates: keyboard flow, sidebar add/edit/delete + ⌘Z, the quick-add field.
 
 ## Phase 4 (widgets, Control, Siri)
 
@@ -86,9 +93,17 @@ From the Phase 4 review.
 - No undo for a widget tick.
 - Check the widgets in tinted and clear home-screen modes.
 
-## Phase 5–6
+## Phase 5 follow-ups
 
-- `ItemFilter` has no `.all`; `NotificationPlanner` needs timed items beyond the 7-day agenda.
+- **Device check** of notifications (permission prompt, a due-time alert, the morning summary, Done / +1 hour / Tomorrow from the lock screen with the app suspended and force-quit). Steps in the Phase 5 report.
+- **Stale alerts on iPhone.** Notifications are planned from the data the iPhone has; an item changed on the Mac re-plans only when the iPhone app imports it (spec §18). On activation that is automatic; a background refresh task or an intent running in the app process must `await NotificationCoordinator.shared.rescheduleNow()` (it opens the store if needed) before finishing.
+- **Widget Complete intent** should withdraw the item's alert: remove `PlannedNotification.identifier(forItem:)` from pending and delivered requests.
+- Notification text is English ("Today: 3", "Overdue: 2", "+1 Hour") — decide at localization.
+- An item moved by "+1 hour" inside the hour repeated by the autumn DST change lands on the first, already-passed copy of that time and gets no new alert.
+
+## Phase 6 (Settings)
+
+- Bind to `NotificationCoordinator.shared`: `settings` (`isEnabled`, `morningSummaryEnabled`, `morningSummaryMinute`), `permission` (`.denied` → explain and link `NotificationCoordinator.systemSettingsURL`), `requestPermission()`. Turning notifications on (the Mac's default is off) should call `requestPermission()`, so the prompt comes from the switch even before anything is scheduled.
 - "Last synced" should use the CloudKit event's `endDate`.
 
 ## Later (after v1)

@@ -3,10 +3,25 @@ import SwiftUI
 
 @main
 struct ScribeApp: App {
-    @State private var loader = StoreLoader()
+    @State private var loader: StoreLoader
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var macDelegate
+    #endif
+
+    init() {
+        let loader = StoreLoader()
+        _loader = State(initialValue: loader)
+        // Before launch finishes, so a notification tap or button that
+        // launched the app reaches it.
+        NotificationCoordinator.shared.install(loader: loader)
+        #if os(macOS)
+        // For the hotkey, installed when launch finishes.
+        MacAppDelegate.launchLoader = loader
+        #endif
+    }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             Group {
                 switch loader.state {
                 case .loading:
@@ -37,6 +52,14 @@ struct ScribeApp: App {
         .backgroundTask(.appRefresh(BackgroundRefresh.identifier)) {
             await BackgroundRefresh.run()
         }
+        #endif
+        #if os(macOS)
+        .defaultSize(width: 960, height: 640)
+        .commands { MacCommands() }
+        #endif
+
+        #if os(macOS)
+        MacMenuBarScene(loader: loader)
         #endif
     }
 }
