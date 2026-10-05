@@ -78,6 +78,10 @@ public final class NotificationScheduler {
     @ObservationIgnored private var latest: Task<Void, Never>?
     /// The open permission prompt, if any.
     @ObservationIgnored private var permissionRequest: Task<Void, Never>?
+    /// Passes prompt at most once per process. A prompt that fails and
+    /// leaves permission undetermined (an unsigned Mac build) would
+    /// otherwise be retried by every pass that follows.
+    @ObservationIgnored private var hasPrompted = false
 
     /// - Parameters:
     ///   - openStore: Opens (or returns) the process's one store. Called
@@ -132,7 +136,9 @@ public final class NotificationScheduler {
         await latest?.value
     }
 
-    /// Shows the system prompt if it hasn't been answered, then re-plans.
+    /// Shows the system prompt if it hasn't been answered (one attempt per
+    /// call, even after an automatic attempt failed), then re-plans if the
+    /// answer changed anything.
     public func requestPermission() async {
         await askForPermission().value
     }
@@ -186,7 +192,7 @@ public final class NotificationScheduler {
         let planned = planner.plan(items: items, categories: categories, settings: settings, now: now())
 
         permission = await center.authorization()
-        if permission == .notDetermined, !planned.isEmpty, mayAskForPermission() {
+        if permission == .notDetermined, !planned.isEmpty, !hasPrompted, mayAskForPermission() {
             askForPermission() // answered later; that re-plans
         }
         let wanted = permission == .allowed ? planned : []
@@ -218,10 +224,12 @@ public final class NotificationScheduler {
 
     // MARK: Permission
 
-    /// One prompt at a time; when it's answered, re-plan.
+    /// One prompt at a time. Re-plans only once permission is decided, so a
+    /// failed prompt can't start a loop of passes and prompts.
     @discardableResult
     private func askForPermission() -> Task<Void, Never> {
         if let permissionRequest { return permissionRequest }
+        hasPrompted = true
         let task = Task { [weak self] in
             guard let self else { return }
             do {
@@ -231,7 +239,9 @@ public final class NotificationScheduler {
                 permission = await center.authorization()
             }
             permissionRequest = nil
-            setNeedsReschedule(after: .zero)
+            if permission != .notDetermined {
+                setNeedsReschedule(after: .zero)
+            }
         }
         permissionRequest = task
         return task

@@ -83,11 +83,11 @@ Tests: past/done/untimed items, memos, ordering, ties, cap (61+ timed items, sum
 ```swift
 public enum NotificationAction: String, CaseIterable, Sendable { case done, inAnHour, tomorrow }
 // identifiers "scribe.action.done" / ".inAnHour" / ".tomorrow"
-public func perform(on itemID: UUID, store: any ItemStore, now: Date, calendar: Calendar) throws
-public static func inAnHour(now:calendar:) -> DueDate        // now + 60 min, rounded up to 5 min
-public static func tomorrow(from:today:) -> DueDate          // day after max(due day, today), time kept
+public func perform(itemID: UUID, store: any ItemStore, now: Date, calendar: Calendar) throws
+public static func dueInAnHour(from:calendar:) -> DueDate                // now + 60 min, seconds dropped, rounded up to 5 min
+public static func dueTomorrow(after:today:calendar:) -> DueDate         // day after max(due day, today), time kept
 ```
-A missing item is ignored (deleted on another device). Done on a memo is a no-op (store rule). Tests with the in-memory store: each action, midnight crossing, exact 5-minute boundary, seconds rounding up, stale notification, missing item.
+A missing item is ignored (deleted on another device). Done on a memo is a no-op (store rule). Tests with the in-memory store: each action, midnight crossing, exact 5-minute boundary, seconds dropped before rounding (14:00:20 → 15:00), stale notification, missing item.
 
 ### Task 6: App scheduler (`NotificationCoordinator`)
 
@@ -129,3 +129,5 @@ README status line, backlog (remove the Phase 5 item, add follow-ups), report.
 ## Review fixes (2026-10-05)
 
 The scheduling logic moved from the app into Core (`NotificationScheduler` behind `NotificationCenterClient`), so it is unit-tested with a fake center: `rescheduleNow()` opens the store itself in a background launch; the permission prompt runs in its own task and never blocks a pass; a dropped action is reported. Also: public alert identifiers, App Group settings, a clamped summary minute, "+1 hour" drops seconds, the Mac settings URL opens Scribe's entry, and `NotificationUITests` is opt-in (`TEST_RUNNER_SCRIBE_RUN_NOTIFICATION_UI_TESTS=1`).
+
+Round 2: passes prompt for permission at most once per process, and the scheduler re-plans after a prompt only once permission is decided — a prompt that fails while leaving it undetermined (an unsigned Mac build) no longer loops. `requestPermission()` (the Settings button) still tries once per call.

@@ -9,6 +9,9 @@ final class FakeNotificationCenter: NotificationCenterClient {
     var status: NotificationPermission
     var promptAnswer: NotificationPermission = .allowed
     var holdsPrompt = false
+    /// Makes the prompt fail and leaves the status undetermined, as on an
+    /// unsigned Mac build (`UNErrorCodeNotificationsNotAllowed`).
+    var promptError: (any Error)?
     private(set) var prompts = 0
     private(set) var pendingRequests: [String: PlannedNotification] = [:]
     var delivered: [String] = []
@@ -24,6 +27,7 @@ final class FakeNotificationCenter: NotificationCenterClient {
 
     func requestAuthorization() async throws -> NotificationPermission {
         prompts += 1
+        if let promptError { throw promptError }
         if holdsPrompt {
             await withCheckedContinuation { openPrompt = $0 }
         }
@@ -206,6 +210,67 @@ struct NotificationSchedulerTests {
         await scheduler.waitUntilIdle()
         #expect(scheduler.permission == .allowed)
         #expect(center.pendingIDs.contains(PlannedNotification.identifier(forItem: id)))
+    }
+
+    struct PromptFailed: Error {}
+
+    func passes(_ events: Events) -> Int {
+        events.list.filter { if case .rescheduled = $0 { true } else { false } }.count
+    }
+
+    /// A prompt that fails and leaves permission undetermined must not be
+    /// retried by the passes that follow — that would loop.
+    @Test func aFailedPromptIsNotRetriedAutomatically() async throws {
+        let store = try makeStore(clock: clock)
+        try store.addItem(ItemDraft(title: "Call Dan", due: tomorrowNine))
+        let center = FakeNotificationCenter(status: .notDetermined)
+        center.promptError = PromptFailed()
+        let events = Events()
+        let scheduler = makeScheduler(center: center, opener: Opener(store), events: events)
+
+        await scheduler.rescheduleNow()
+        await scheduler.waitUntilIdle()
+        for _ in 0..<3 {
+            scheduler.setNeedsReschedule()
+            await scheduler.rescheduleNow()
+        }
+        try store.addItem(ItemDraft(title: "Another", due: tomorrowNine))
+        try await Task.sleep(for: .milliseconds(100))
+        await scheduler.waitUntilIdle()
+
+        #expect(center.prompts == 1)
+        #expect(events.list.filter { if case .permissionRequestFailed = $0 { true } else { false } }.count == 1)
+        #expect(scheduler.permission == .notDetermined)
+        #expect(center.pendingIDs.isEmpty)
+        #expect(passes(events) <= 6, "no re-plan loop: \(passes(events)) passes")
+    }
+
+    /// The Settings button asks again, once per tap, and a failure there
+    /// doesn't start a re-plan.
+    @Test func explicitRequestRetriesExactlyOnce() async throws {
+        let store = try makeStore(clock: clock)
+        try store.addItem(ItemDraft(title: "Call Dan", due: tomorrowNine))
+        let center = FakeNotificationCenter(status: .notDetermined)
+        center.promptError = PromptFailed()
+        let events = Events()
+        let scheduler = makeScheduler(center: center, opener: Opener(store), events: events)
+        await scheduler.rescheduleNow()
+        await scheduler.waitUntilIdle()
+        #expect(center.prompts == 1)
+        let passesBefore = passes(events)
+
+        await scheduler.requestPermission()
+        try await Task.sleep(for: .milliseconds(50))
+        await scheduler.waitUntilIdle()
+        #expect(center.prompts == 2)
+        #expect(passes(events) == passesBefore)
+
+        center.promptError = nil
+        await scheduler.requestPermission()
+        await scheduler.waitUntilIdle()
+        #expect(center.prompts == 3)
+        #expect(scheduler.permission == .allowed)
+        #expect(center.pendingIDs.count == 2, "answered: re-planned")
     }
 
     @Test func noPromptWithNothingToNotify() async throws {
