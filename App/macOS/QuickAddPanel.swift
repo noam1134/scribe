@@ -2,10 +2,11 @@ import AppKit
 import ScribeCore
 import SwiftUI
 
-/// The ⌃⌥Space panel (spec §8, §9.3): a floating glass composer, Spotlight
-/// style, on the display under the pointer. Return adds and closes; Esc or
-/// clicking elsewhere closes. The app is activated so the first click
-/// works, and the app that was in front gets activation back on close.
+/// The ⌃⇧Space panel (spec §8, §9.3; the shortcut is amended from
+/// ⌃⌥Space): a floating glass composer, Spotlight style, on the display
+/// under the pointer. Return adds and closes; Esc or clicking elsewhere
+/// closes. Like Spotlight it never activates Scribe — the app in front
+/// stays in front — yet it takes the keyboard and the first click.
 @MainActor
 final class QuickAddPanelController {
     static let width: CGFloat = 620
@@ -13,7 +14,6 @@ final class QuickAddPanelController {
     private let loader: StoreLoader
     private var panel: QuickAddPanel?
     private var escapeMonitor: Any?
-    private var previousApp: NSRunningApplication?
 
     init(loader: StoreLoader) {
         self.loader = loader
@@ -22,24 +22,23 @@ final class QuickAddPanelController {
     var isShown: Bool { panel?.isVisible == true }
 
     func toggle() {
-        if isShown { close(returningFocus: true) } else { show() }
+        if isShown { close() } else { show() }
     }
 
     func show() {
         if case .loading = loader.state { loader.load() }
         guard case .ready(let store) = loader.state else {
-            // The window explains a store that won't open (spec §13).
-            NSApp.activate()
+            // The main window explains a store that won't open (spec §13).
+            MacLog.hotkey.error("Quick-add panel not shown: the store isn't open")
+            NSSound.beep()
             return
         }
-        previousApp = NSApp.isActive ? nil : NSWorkspace.shared.frontmostApplication
-
         let panel = self.panel ?? QuickAddPanel()
         self.panel = panel
-        panel.onResignKey = { [weak self] in self?.close(returningFocus: false) }
+        panel.onResignKey = { [weak self] in self?.close() }
         let content = QuickAddPanelView(
             store: store,
-            close: { [weak self] in self?.close(returningFocus: true) },
+            close: { [weak self] in self?.close() },
             resize: { [weak panel] height in panel?.setHeightKeepingTop(height) }
         )
         let host = FirstMouseHostingView(rootView: content)
@@ -47,7 +46,7 @@ final class QuickAddPanelController {
         panel.contentView = host
         panel.place(width: Self.width, height: 130)
 
-        NSApp.activate()
+        // A non-activating panel becomes key without activating Scribe.
         panel.makeKeyAndOrderFront(nil)
         // SwiftUI's focus state doesn't reach a hand-made window before it
         // is key; put the caret in the field once the content is laid out.
@@ -56,16 +55,14 @@ final class QuickAddPanelController {
         MacLog.hotkey.info("Quick-add panel shown")
     }
 
-    func close(returningFocus: Bool) {
+    /// Orders the panel out. Its content stays until the next `show()`
+    /// replaces it: Return closes the panel while the field is still
+    /// handling that key.
+    func close() {
         guard let panel, panel.isVisible else { return }
         removeEscapeMonitor()
         panel.onResignKey = nil
         panel.orderOut(nil)
-        panel.contentView = nil
-        if returningFocus, let previousApp, !previousApp.isTerminated {
-            previousApp.activate(from: .current, options: [])
-        }
-        previousApp = nil
     }
 
     /// Esc arrives as a key-down with key code 53: `.onExitCommand` never
@@ -75,7 +72,7 @@ final class QuickAddPanelController {
         removeEscapeMonitor()
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak panel] event in
             guard event.keyCode == 53, let panel, event.window === panel else { return event }
-            MainActor.assumeIsolated { self?.close(returningFocus: true) }
+            MainActor.assumeIsolated { self?.close() }
             return nil
         }
     }
@@ -87,8 +84,8 @@ final class QuickAddPanelController {
 }
 
 /// Borderless, transparent, floating on every Space; the SwiftUI content
-/// draws the glass. Non-activating, so it takes the keyboard even before
-/// (or if macOS declines) the app's activation.
+/// draws the glass. Non-activating: it becomes key while another app stays
+/// active.
 final class QuickAddPanel: NSPanel {
     var onResignKey: (() -> Void)?
 
@@ -151,7 +148,7 @@ final class QuickAddPanel: NSPanel {
     }
 }
 
-/// Takes the click that activates the app, so the first click lands.
+/// Takes the first click even though Scribe isn't the active app.
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }

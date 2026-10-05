@@ -17,7 +17,8 @@ struct MacMenuBarScene: Scene {
 /// Opening it activates the app — the Mac imports from iCloud when it
 /// becomes active (spec §18), and the quick-add field needs it for typing.
 /// Closing it hands activation back to the app that was in front, unless
-/// the user asked to open Scribe.
+/// the user went on in Scribe (opened it, or clicked into its window) or
+/// already switched elsewhere.
 struct MenuBarPanel: View {
     let loader: StoreLoader
 
@@ -28,11 +29,11 @@ struct MenuBarPanel: View {
         Group {
             switch loader.state {
             case .ready(let store):
-                MenuBarContent(store: store, open: open)
+                MenuBarContent(store: store, open: open, showScribe: showScribe)
             case .failed:
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Can’t open your notes").font(.headline)
-                    Button("Open Scribe") { open(.upcoming) }
+                    Button("Open Scribe", action: showScribe)
                 }
                 .padding(16)
             case .loading:
@@ -47,24 +48,34 @@ struct MenuBarPanel: View {
                 NSApp.activate()
             }
         }
-        .onDisappear {
-            if let previousApp, !previousApp.isTerminated {
-                previousApp.activate(from: .current, options: [])
-            }
-            previousApp = nil
-        }
+        .onDisappear(perform: handBack)
     }
 
-    private func open(_ link: DeepLink) {
+    private func handBack() {
+        defer { previousApp = nil }
+        guard let previousApp, !previousApp.isTerminated, NSApp.isActive else { return }
+        let keyWindowID = NSApp.keyWindow?.identifier?.rawValue ?? ""
+        guard !keyWindowID.hasPrefix(MacWindows.mainID) else { return }
+        previousApp.activate(from: .current, options: [])
+    }
+
+    /// Brings the main window forward as it was.
+    private func showScribe() {
         previousApp = nil
-        loader.pendingLink = link
         MacWindows.showMain(openWindow)
+    }
+
+    /// Shows an item (or the agenda) in the main window.
+    private func open(_ link: DeepLink) {
+        loader.pendingLink = link
+        showScribe()
     }
 }
 
 private struct MenuBarContent: View {
     let store: SwiftDataItemStore
     let open: (DeepLink) -> Void
+    let showScribe: () -> Void
 
     private enum Field: Hashable { case quickAdd }
 
@@ -73,9 +84,10 @@ private struct MenuBarContent: View {
     @State private var messageIsError = false
     @FocusState private var focus: Field?
 
-    init(store: SwiftDataItemStore, open: @escaping (DeepLink) -> Void) {
+    init(store: SwiftDataItemStore, open: @escaping (DeepLink) -> Void, showScribe: @escaping () -> Void) {
         self.store = store
         self.open = open
+        self.showScribe = showScribe
         _composer = State(initialValue: QuickAddComposer(store: store))
     }
 
@@ -132,14 +144,35 @@ private struct MenuBarContent: View {
 
             Divider()
 
+            if let hotkey = QuickAddHotkey.status {
+                hotkeyNote(hotkey.shortcut, isTakenBySystem: hotkey.isTakenBySystem)
+            }
+
             HStack {
-                Button("Open Scribe") { open(.upcoming) }
+                Button("Open Scribe", action: showScribe)
                 Spacer()
                 Button("Quit Scribe") { NSApp.terminate(nil) }
             }
             .buttonStyle(.borderless)
         }
         .padding(14)
+        .defaultFocus($focus, .quickAdd)
+        .onAppear { focus = .quickAdd }
+    }
+
+    /// Where the quick-add shortcut is, and a warning when macOS uses the
+    /// same keys (it gets them first).
+    @ViewBuilder private func hotkeyNote(_ shortcut: String, isTakenBySystem: Bool) -> some View {
+        if isTakenBySystem {
+            Label("\(shortcut) is also a macOS shortcut, so quick add may not open. Turn that one off in System Settings › Keyboard › Keyboard Shortcuts.", systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Text("\(shortcut) adds from anywhere")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private func row(_ item: ItemSnapshot, categories: [CategorySnapshot], overdue: Bool, labels: DueLabels, today: LocalDay) -> some View {
