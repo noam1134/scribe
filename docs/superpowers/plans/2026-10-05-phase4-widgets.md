@@ -113,3 +113,12 @@ Driven with throwaway XCUITest scripts against SpringBoard and Shortcuts; proces
 | Freshness stamp | Written to the App Group defaults when the app enters the background |
 
 Found and fixed while checking: an item or Upcoming link (widget row, widget background) opened underneath a composer left open earlier; those links now close it.
+
+## Review fixes (2026-10-05)
+
+- `WidgetRefresher` became `StoreChangeRelay`, started with `SyncRefresher` by `AppProcess` whenever the app process first opens its store (`SharedStore.open()` → `processDidOpen`, defined per target). `StoreChanged.notify()` (Intents/) is the one per-process "store changed" signal: widget + Control reloads, then registered observers (notification rescheduling joins at the Phase 5 merge).
+- A widget configured for a deleted category gets a `CategoryEntity.deleted` placeholder and shows "Category deleted" (confirmed broken first: it silently switched to all categories).
+- Widget checkboxes: 26×22 pt tap area, "Complete <title>".
+- Background refresh: cold launch vs warm wake (20 s / 5 s import wait), cancellation-aware.
+- Widget timelines read `datedOpenItems()` (open items with a date) instead of every item.
+- `CompleteTaskIntent` runs in the app process if it also conforms to `LiveActivityIntent` (checked in the simulator); not adopted yet.
