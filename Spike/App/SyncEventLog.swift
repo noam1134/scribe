@@ -24,6 +24,12 @@ final class SyncEventLog {
             let text = Self.describe(note)
             MainActor.assumeIsolated { self?.append(text) }
         })
+        #if os(macOS)
+        observers.append(center.addObserver(forName: ProbeAppDelegate.pushEvent, object: nil, queue: .main) { [weak self] note in
+            let text = note.object as? String ?? "push event"
+            MainActor.assumeIsolated { self?.append(text) }
+        })
+        #endif
         observers.append(center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
