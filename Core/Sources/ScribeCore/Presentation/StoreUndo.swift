@@ -35,11 +35,15 @@ public struct StoreUndo {
         return deletion
     }
 
-    /// Any edit; undo puts back every field as it was just before.
+    /// Any edit. Undo and redo touch only the fields this edit changed, so
+    /// a later rename (here or on another device) survives undoing a move.
     public func update(_ id: UUID, actionName: String, _ edit: (inout ItemEdit) -> Void) throws {
         guard let before = store.item(id) else { throw StoreError.itemNotFound(id) }
         try store.updateItem(id, edit)
-        register(actionName) { try $0.setFields(id, Self.fields(of: before), actionName: actionName) }
+        guard let after = store.item(id) else { return }
+        let change = FieldChange(from: before, to: after)
+        guard !change.isEmpty else { return }
+        register(actionName) { try $0.apply(change.reversed, to: id, actionName: actionName) }
     }
 
     // MARK: Inverses
@@ -54,10 +58,12 @@ public struct StoreUndo {
         register(Self.deleteName(deletion.category.name)) { try $0.deleteCategory(deletion.category.id) }
     }
 
-    private func setFields(_ id: UUID, _ fields: ItemEdit, actionName: String) throws {
-        guard let current = store.item(id) else { throw StoreError.itemNotFound(id) }
-        try store.updateItem(id) { $0 = fields }
-        register(actionName) { try $0.setFields(id, Self.fields(of: current), actionName: actionName) }
+    private func apply(_ change: FieldChange, to id: UUID, actionName: String) throws {
+        guard store.item(id) != nil else { throw StoreError.itemNotFound(id) }
+        try store.updateItem(id) { change.apply(to: &$0) }
+        // After the kind: a memo can't be done.
+        if let done = change.isDone { try store.setDone(id, done) }
+        register(actionName) { try $0.apply(change.reversed, to: id, actionName: actionName) }
     }
 
     // MARK: Helpers
@@ -75,11 +81,55 @@ public struct StoreUndo {
         manager.setActionName(actionName)
     }
 
-    private static func fields(of item: ItemSnapshot) -> ItemEdit {
-        ItemEdit(title: item.title, body: item.body, kind: item.kind, categoryID: item.categoryID, due: item.due)
-    }
-
     private static func deleteName(_ name: String) -> String {
         "Delete “\(name)”"
+    }
+}
+
+/// The fields one edit changed: their values before and after. Done counts
+/// too — making a done task a memo clears it, and undo brings it back.
+private struct FieldChange {
+    struct Values {
+        var title: String?
+        var body: String?
+        var kind: ItemKind?
+        var categoryID: UUID??
+        var due: DueDate??
+        var isDone: Bool?
+    }
+
+    var old = Values()
+    var new = Values()
+
+    init(from before: ItemSnapshot, to after: ItemSnapshot) {
+        if before.title != after.title { (old.title, new.title) = (before.title, after.title) }
+        if before.body != after.body { (old.body, new.body) = (before.body, after.body) }
+        if before.kind != after.kind { (old.kind, new.kind) = (before.kind, after.kind) }
+        if before.categoryID != after.categoryID { (old.categoryID, new.categoryID) = (.some(before.categoryID), .some(after.categoryID)) }
+        if before.due != after.due { (old.due, new.due) = (.some(before.due), .some(after.due)) }
+        if before.isDone != after.isDone { (old.isDone, new.isDone) = (before.isDone, after.isDone) }
+    }
+
+    private init(old: Values, new: Values) {
+        self.old = old
+        self.new = new
+    }
+
+    var isEmpty: Bool {
+        new.title == nil && new.body == nil && new.kind == nil && new.categoryID == nil && new.due == nil && new.isDone == nil
+    }
+
+    /// Undo for this change (and redo for the undo).
+    var reversed: FieldChange { FieldChange(old: new, new: old) }
+
+    /// The done state to set after `apply`, if it changed.
+    var isDone: Bool? { new.isDone }
+
+    func apply(to edit: inout ItemEdit) {
+        if let title = new.title { edit.title = title }
+        if let body = new.body { edit.body = body }
+        if let kind = new.kind { edit.kind = kind }
+        if let categoryID = new.categoryID { edit.categoryID = categoryID }
+        if let due = new.due { edit.due = due }
     }
 }

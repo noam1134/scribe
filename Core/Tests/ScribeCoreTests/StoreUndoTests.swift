@@ -89,6 +89,49 @@ struct StoreUndoTests {
         #expect(store.item(id)?.categoryID == work)
     }
 
+    @Test func undoingAMoveKeepsALaterTitleEdit() throws {
+        let (store, manager, undo, _) = try make()
+        let home = try store.addCategory(CategoryDraft(name: "Home"))
+        let work = try store.addCategory(CategoryDraft(name: "Work"))
+        let id = try store.addItem(ItemDraft(title: "Fix sink", categoryID: home))
+
+        try step(manager) { try undo.update(id, actionName: "Move to Work") { $0.categoryID = work } }
+        // Renamed afterwards — in the editor, or on another device.
+        try store.updateItem(id) { $0.title = "Fix the kitchen sink" }
+
+        manager.undo()
+        #expect(store.item(id)?.categoryID == home)
+        #expect(store.item(id)?.title == "Fix the kitchen sink")
+        manager.redo()
+        #expect(store.item(id)?.categoryID == work)
+        #expect(store.item(id)?.title == "Fix the kitchen sink")
+    }
+
+    @Test func undoingMakeMemoOnADoneTaskRestoresDone() throws {
+        let (store, manager, undo, _) = try make()
+        let id = try store.addItem(ItemDraft(title: "Pay rent"))
+        try store.setDone(id, true)
+
+        try step(manager) { try undo.update(id, actionName: "Make Memo") { $0.kind = .memo } }
+        #expect(store.item(id)?.kind == .memo)
+        #expect(store.item(id)?.isDone == false)
+
+        manager.undo()
+        #expect(store.item(id)?.kind == .task)
+        #expect(store.item(id)?.isDone == true)
+        manager.redo()
+        #expect(store.item(id)?.kind == .memo)
+        #expect(store.item(id)?.isDone == false)
+    }
+
+    @Test func anEditThatChangesNothingRegistersNothing() throws {
+        let (store, manager, undo, _) = try make()
+        let id = try store.addItem(ItemDraft(title: "Fix sink"))
+        // No group is open: registering anything would raise.
+        try undo.update(id, actionName: "Make Task") { $0.kind = .task }
+        #expect(!manager.canUndo)
+    }
+
     @Test func anUndoThatCanNoLongerApplyIsReported() throws {
         let (store, manager, undo, errors) = try make()
         let id = try store.addItem(ItemDraft(title: "Fix sink"))
