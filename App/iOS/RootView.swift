@@ -31,8 +31,14 @@ struct RootView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            QuickAddBar()
+        }
         .overlay(alignment: .bottom) {
             UndoToast()
+        }
+        .sheet(isPresented: $router.isComposing) {
+            QuickAddSheet(store: store, categoryID: router.composerCategoryID)
         }
         .alert("Couldn’t Save", isPresented: Binding(
             get: { router.alertMessage != nil },
