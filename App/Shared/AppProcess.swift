@@ -19,6 +19,8 @@ enum AppProcess {
         guard syncRefresher == nil else { return }
         syncRefresher = SyncRefresher(store: store)
         changeRelay = StoreChangeRelay()
+        // From the store's first CloudKit event on, for Settings' "Last synced".
+        SyncMonitor.shared.start()
         // Writes outside the screens (Siri, a widget tick, background
         // refresh) re-plan before they return. The scheduler serializes and
         // coalesces passes, so overlapping calls are safe.
