@@ -2,27 +2,10 @@ import SwiftUI
 
 @main
 struct ScribeApp: App {
-    #if os(macOS)
-    @NSApplicationDelegateAdaptor(ProbeAppDelegate.self) private var appDelegate
-    #endif
-    // Created before the store so the log sees the CloudKit "setup" event.
-    @State private var log = SyncEventLog()
-
-    init() {
-        _ = ProbeStore.container
-        ProbeLogFile.append("launched \(CommandLine.arguments.dropFirst().joined(separator: " "))")
-        if CommandLine.arguments.contains("-probeAdd") {
-            do {
-                try ProbeStore.add(source: "launch-arg")
-            } catch {
-                ProbeLogFile.append("launch-arg add FAILED: \(error)")
-            }
-        }
-    }
-
     var body: some Scene {
         WindowGroup {
-            ProbeRootView(log: log)
+            Text("Scribe")
+                .padding()
         }
     }
 }
