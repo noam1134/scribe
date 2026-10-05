@@ -4,7 +4,7 @@ A native notes app, written in Swift.
 
 ## Status
 
-iPhone app usable (Phase 2): Upcoming, categories, inline editing, quick-add with English + Hebrew parsing, search, iCloud sync. Mac app, widgets, notifications and settings come next.
+iPhone app usable (Phase 2): Upcoming, categories, inline editing, quick-add with English + Hebrew parsing, search, iCloud sync. Mac app (Phase 3): sidebar + list with inline editing, keyboard shortcuts, search, a menu bar extra and the ⌃⌥Space quick-add panel. Widgets, notifications and settings come next.
 
 ## Development
 
