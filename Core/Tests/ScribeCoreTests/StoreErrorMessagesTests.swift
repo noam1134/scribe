@@ -10,7 +10,7 @@ struct StoreErrorMessagesTests {
         let error = #expect(throws: StoreError.duplicateCategoryName) {
             try store.addCategory(CategoryDraft(name: "work"))
         }
-        #expect(error?.localizedDescription == "There's already a category with that name.")
+        #expect(error?.localizedDescription == "There’s already a category with that name.")
     }
 
     @Test func everyErrorHasAMessage() {
