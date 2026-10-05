@@ -40,14 +40,7 @@ struct RootView: View {
         .sheet(isPresented: $router.isComposing) {
             QuickAddSheet(store: store, categoryID: router.composerCategoryID)
         }
-        .alert("Couldn’t Save", isPresented: Binding(
-            get: { router.alertMessage != nil },
-            set: { if !$0 { router.alertMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(router.alertMessage ?? "")
-        }
+        .saveErrorAlert(router)
         .environment(router)
         .environment(undo)
         .onChange(of: loader.pendingLink, initial: true) { _, link in

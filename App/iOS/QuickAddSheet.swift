@@ -47,6 +47,7 @@ struct QuickAddSheet: View {
         .presentationDetents([.height(150)])
         .presentationDragIndicator(.visible)
         .onAppear { focused = true }
+        .saveErrorAlert(router)
     }
 
     @ViewBuilder private var chips: some View {
