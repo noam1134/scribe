@@ -80,7 +80,8 @@ Deferred in the Phase 2 (iPhone app) reviews.
 ## Phase 5 follow-ups
 
 - **Device check** of notifications (permission prompt, a due-time alert, the morning summary, Done / +1 hour / Tomorrow from the lock screen with the app suspended and force-quit). Steps in the Phase 5 report.
-- **Stale alerts on iPhone.** Notifications are planned from the data the iPhone has; an item changed on the Mac re-plans only when the iPhone app imports it (spec §18 — activation, or Phase 4's background refresh calling `store.refresh()`).
+- **Stale alerts on iPhone.** Notifications are planned from the data the iPhone has; an item changed on the Mac re-plans only when the iPhone app imports it (spec §18). On activation that is automatic; a background refresh task or an intent running in the app process must `await NotificationCoordinator.shared.rescheduleNow()` (it opens the store if needed) before finishing.
+- **Widget Complete intent** should withdraw the item's alert: remove `PlannedNotification.identifier(forItem:)` from pending and delivered requests.
 - Notification text is English ("Today: 3", "Overdue: 2", "+1 Hour") — decide at localization.
 - An item moved by "+1 hour" inside the hour repeated by the autumn DST change lands on the first, already-passed copy of that time and gets no new alert.
 
