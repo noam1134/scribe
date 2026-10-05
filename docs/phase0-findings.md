@@ -38,9 +38,9 @@ Arrival times on the Mac come from the store's persistent history (`ATRANSACTION
 
 ## Decision
 
-**Pending the author.** The plan's NO-GO rule ("M1 never syncs with both apps open") is technically met for iPhone → Mac, because the Mac only syncs on activation. Recommendation: **GO WITH CHANGES** (see below).
+**GO WITH CHANGES** — decided by the author on 2026-10-05. (The plan's NO-GO rule ("M1 never syncs with both apps open") is technically met for iPhone → Mac, because the Mac only syncs on activation; the author chose to keep iCloud with the changes below.)
 
-Changes required in later phases if GO WITH CHANGES:
+Changes required in later phases:
 - §12 / Phase 3 (Mac): keep `registerForRemoteNotifications`; investigate why CloudKit pushes don't reach the Mac app (dev-signed build, APNs environment, CloudKit subscription); until fixed, the Mac shows the latest data within ~2 s of becoming active, and the menu bar panel must trigger activation when opened.
 - §10 / §11 / Phase 4–5 (iPhone): iOS won't reliably wake the app for silent pushes, so widgets and notifications can be stale until the app runs. Add a `BGAppRefreshTask` that lets the app import and reload widgets opportunistically; document that widget data can lag.
 - §8 / Phase 4: first thing on device, confirm Scribe's App Intents are registered (Shortcuts lists them) and that widget "+" / checkbox and Control actions write; record which process runs them.

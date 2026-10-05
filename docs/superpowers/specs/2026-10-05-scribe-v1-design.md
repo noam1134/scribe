@@ -362,3 +362,13 @@ Each phase gets its own implementation plan, written when the previous phase is 
 - Sharing a category with another person.
 - Recurring items, sub-checklists, attachments.
 - Hebrew App Shortcut phrases.
+
+## 18. Phase 0 Amendments (2026-10-05)
+
+Measured on a real iPhone + Mac; details in `docs/phase0-findings.md`. Decision: keep iCloud sync (§2), with these changes:
+
+- **Mac sync timing (§12).** The Mac app did not receive CloudKit pushes, even after `NSApplication.registerForRemoteNotifications()` succeeded; it imports within ~2 s of becoming active. The Mac app keeps the push registration, Phase 3 investigates the missing pushes, and opening the menu bar panel must activate the app so it syncs.
+- **iPhone background freshness (§10, §11).** iOS did not wake the suspended app for the CloudKit silent push. Phase 4 adds a `BGAppRefreshTask` that imports and reloads widget timelines opportunistically; widget data may lag until then.
+- **App Intents on device (§8).** On the iPhone, Shortcuts did not list Scribe and the widget/Control intents wrote nothing; in the simulator the shortcut ran in the app process and wrote correctly. Phase 4 starts by verifying intent registration and the widget/Control write path on the device.
+- **"Last synced" (§13).** Feasible: `NSPersistentCloudKitContainer.eventChangedNotification` reports setup/import/export under SwiftData.
+- **App Group (§4.2).** `group.com.noamchuri.scribe` works on macOS and iOS once registered in the developer portal; command-line automatic signing does not register App Groups.
