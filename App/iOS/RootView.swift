@@ -21,7 +21,10 @@ struct RootView: View {
             }
             Tab("Categories", systemImage: "square.stack", value: AppRouter.Tab.categories) {
                 NavigationStack(path: $router.categoriesPath) {
-                    ComingNext(title: "Categories")
+                    CategoriesView(store: store)
+                        .navigationDestination(for: AppRouter.Destination.self) { destination in
+                            CategoryDetailView(store: store, destination: destination)
+                        }
                 }
             }
             Tab(value: AppRouter.Tab.search, role: .search) {

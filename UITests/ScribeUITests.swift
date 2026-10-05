@@ -64,4 +64,33 @@ final class ScribeUITests: XCTestCase {
         moved.typeText("\n")
         XCTAssertTrue(app.staticTexts["Pay rent now"].waitForExistence(timeout: 5))
     }
+
+    func testDeleteThenUndoInTheInbox() {
+        quickAdd("Water plants")
+        app.tabBars.buttons["Categories"].tap()
+        app.buttons["inboxRow"].tap()
+        let row = app.staticTexts["Water plants"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.swipeLeft()
+        app.buttons["Delete"].tap()
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+        let undo = app.buttons["undoButton"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 3))
+        undo.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+    }
+
+    func testDuplicateCategoryNameIsExplainedInline() {
+        app.tabBars.buttons["Categories"].tap()
+        for _ in 0..<2 {
+            app.buttons["Add Category"].tap()
+            let field = app.textFields["newCategoryField"]
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
+            field.typeText("Work\n")
+        }
+        let message = app.staticTexts["inlineError"]
+        XCTAssertTrue(message.waitForExistence(timeout: 5))
+        XCTAssertEqual(message.label, "There’s already a category with that name.")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+    }
 }
