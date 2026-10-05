@@ -121,4 +121,4 @@ Found and fixed while checking: an item or Upcoming link (widget row, widget bac
 - Widget checkboxes: 26×22 pt tap area, "Complete <title>".
 - Background refresh: cold launch vs warm wake (20 s / 5 s import wait), cancellation-aware.
 - Widget timelines read `datedOpenItems()` (open items with a date) instead of every item.
-- `CompleteTaskIntent` runs in the app process if it also conforms to `LiveActivityIntent` (checked in the simulator); not adopted yet.
+- `CompleteTaskIntent` runs in the app process if it also conforms to `LiveActivityIntent` (checked in the simulator). Adopted at the Phase 5 merge: on iPhone the widget tick runs in the app process (the Mac has no `LiveActivityIntent` and runs it in the extension).

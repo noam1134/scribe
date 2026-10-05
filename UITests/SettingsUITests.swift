@@ -108,5 +108,9 @@ final class SettingsUITests: XCTestCase {
         let sheet = app.otherElements["ActivityListView"]
         XCTAssertTrue(sheet.waitForExistence(timeout: 10), "the share sheet should open with the file")
         XCTAssertFalse(app.alerts.firstMatch.exists, "no export error")
+        // The sheet's header names the file: "Scribe-2026-10-05", "JSON · 2 KB".
+        let file = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Scribe-20'")).firstMatch
+        XCTAssertTrue(file.waitForExistence(timeout: 5), "the sheet names the dated file")
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'JSON'")).firstMatch.exists)
     }
 }
