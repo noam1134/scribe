@@ -97,11 +97,15 @@ struct MacQuickAddBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        // The chip rows scroll unclipped (spec §9.1): clip them to the box
+        // instead, so the last chip slides under its edge. Opening isn't
+        // animated: the window lays the taller bar out at once while an
+        // animated glass shape lagged behind it, leaving the chips outside.
+        .clipShape(.rect(cornerRadius: 20))
         .glassEffect(.regular, in: .rect(cornerRadius: 20))
         .padding(.horizontal, 16)
         .padding(.top, 6)
         .padding(.bottom, 14)
-        .animation(.snappy, value: isOpen)
         .onChange(of: router.sidebar, initial: true) { _, entry in
             composer.defaultCategoryID = entry.categoryID
         }
