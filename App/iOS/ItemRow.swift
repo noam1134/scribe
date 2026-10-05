@@ -31,16 +31,20 @@ struct ItemRow: View {
             if isExpanded {
                 ItemEditor(store: store, item: item, categories: categories, perform: router.perform) { setExpanded(false) }
             } else {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title)
-                        .strikethrough(item.isDone)
-                        .foregroundStyle(item.isDone ? .secondary : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .layoutDirection(of: item.title)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                // The date on the title's line when both fit; under the
+                // title when they don't, so a long title isn't squeezed.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        title.fixedSize()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutDirection(of: item.title)
+                        subtitleText?.fixedSize()
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        title
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutDirection(of: item.title)
+                        subtitleText
                     }
                 }
                 .contentShape(.rect)
@@ -88,6 +92,16 @@ struct ItemRow: View {
         }
     }
 
+    private var title: some View {
+        Text(item.title)
+            .strikethrough(item.isDone)
+            .foregroundStyle(item.isDone ? .secondary : .primary)
+    }
+
+    private var subtitleText: Text? {
+        subtitle.map { Text($0).font(.footnote).foregroundStyle(.secondary) }
+    }
+
     private var subtitle: String? {
         item.subtitle(category: category, showsDay: showsDay, showsCategory: showsCategory)
     }
@@ -121,26 +135,27 @@ struct ItemRow: View {
         withAnimation(.snappy) { router.expandedItemID = expanded ? item.id : nil }
     }
 
+    // Animated, so the rows around a completed, moved or deleted one close up.
     private func toggleDone() {
         let snapshot = item
-        router.perform {
+        withAnimation(.snappy) { router.perform {
             try store.setDone(snapshot.id, !snapshot.isDone)
             if offersUndoOnComplete && !snapshot.isDone {
                 undo.offer("Completed “\(snapshot.title)”") { try store.setDone(snapshot.id, false) }
             }
-        }
+        } }
     }
 
     private func update(_ edit: (inout ItemEdit) -> Void) {
-        router.perform { try store.updateItem(item.id, edit) }
+        withAnimation(.snappy) { router.perform { try store.updateItem(item.id, edit) } }
     }
 
     private func delete() {
         let snapshot = item
-        router.perform {
+        withAnimation(.snappy) { router.perform {
             try store.deleteItem(snapshot.id)
             if router.expandedItemID == snapshot.id { router.expandedItemID = nil }
             undo.offer("Deleted “\(snapshot.title)”") { try store.restoreItem(snapshot) }
-        }
+        } }
     }
 }

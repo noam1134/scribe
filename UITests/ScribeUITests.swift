@@ -71,7 +71,8 @@ final class ScribeUITests: XCTestCase {
         app.staticTexts["Pay rent"].tap()
         let field = app.textFields["titleField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        field.tap()
+        // The field is as wide as its text: tap its end to type after it.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
         field.typeText(" now")
         app.buttons["dateChip"].tap()
         app.buttons["Tomorrow"].tap()
@@ -88,7 +89,9 @@ final class ScribeUITests: XCTestCase {
         let row = app.staticTexts["Water plants"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.swipeLeft()
-        app.buttons["Delete"].tap()
+        // A short swipe opens the row on Delete; a long one deletes at once.
+        let delete = app.buttons["Delete"]
+        if delete.waitForExistence(timeout: 1) { delete.tap() }
         XCTAssertTrue(row.waitForNonExistence(timeout: 5))
         let undo = app.buttons["undoButton"]
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
@@ -140,12 +143,19 @@ final class ScribeUITests: XCTestCase {
     private func collapseThailand() -> XCUIElement {
         let work = app.buttons["section-Work"]
         let thailand = app.buttons["section-Thailand"]
-        work.tap()
-        thailand.tap()
-        work.tap()
+        toggle(work)
+        toggle(thailand)
+        toggle(work)
         XCTAssertEqual(thailand.value as? String, "Collapsed")
         XCTAssertEqual(work.value as? String, "Expanded")
         return thailand
+    }
+
+    /// Taps a section header and waits for its rows to finish sliding:
+    /// SwiftUI animations don't hold back the next tap the way a List's did.
+    private func toggle(_ header: XCUIElement) {
+        header.tap()
+        Thread.sleep(forTimeInterval: 0.6)
     }
 
     func testSectionCollapsesAndExpands() {
@@ -165,7 +175,7 @@ final class ScribeUITests: XCTestCase {
         addCategory("Work")
         XCTAssertTrue(app.buttons["addFirst-Work"].exists)
         let header = app.buttons["section-Work"]
-        header.tap()
+        toggle(header)
         XCTAssertEqual(header.value as? String, "Collapsed")
         app.buttons["addTo-Work"].tap()
         let field = app.textFields["quickAddField"]

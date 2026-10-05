@@ -55,20 +55,34 @@ struct ItemEditor: View {
         _text = State(initialValue: ItemTextDraft(title: item.title, notes: item.body))
     }
 
+    private var titleField: some View {
+        let field = TextField("Title", text: $text.title)
+            .submitLabel(.done)
+            .onSubmit {
+                finish()
+                close()
+            }
+            .accessibilityIdentifier("titleField")
+        #if os(macOS)
+        return field.focused($titleFocused)
+        #else
+        // Only as wide as the title, so a tap beside a short title reaches
+        // the row (which closes the editor) instead of starting to edit.
+        return Text(text.title.isEmpty ? "Title" : text.title + "  ")
+            .lineLimit(1)
+            .hidden()
+            .overlay(alignment: .leading) { field }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        #endif
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            TextField("Title", text: $text.title)
-                .font(.body.weight(.medium))
+            titleField
+                // The row's title style: opening the editor swaps one for the
+                // other without the title changing.
+                .font(.body)
                 .layoutDirection(of: text.title)
-                .submitLabel(.done)
-                .onSubmit {
-                    finish()
-                    close()
-                }
-                .accessibilityIdentifier("titleField")
-                #if os(macOS)
-                .focused($titleFocused)
-                #endif
             TextField("Notes", text: $text.notes, axis: .vertical)
                 .font(.callout)
                 .foregroundStyle(.secondary)

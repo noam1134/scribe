@@ -16,6 +16,8 @@ struct ListsView: View {
     @State private var newName = ""
     @State private var addError: String?
     @FocusState private var addFieldFocused: Bool
+    /// The row swiped open to show Done or Delete; one at a time.
+    @State private var swipedItemID: UUID?
 
     private static let addRowID = "addCategory"
 
@@ -28,23 +30,36 @@ struct ListsView: View {
             keeping: router.expandedItemID
         )
         ScrollViewReader { proxy in
-            List {
+            Group {
                 if router.isEditingLists {
-                    Section {
-                        categoryRows(categories)
-                        if isAdding { addRow }
+                    List {
+                        Section {
+                            categoryRows(categories)
+                            if isAdding { addRow }
+                        }
                     }
+                    .environment(\.editMode, .constant(.active))
                 } else {
-                    ForEach(sections) { section in
-                        sectionView(section, categories: categories)
+                    // Cards in a scroll view rather than a List: a List fades
+                    // rows in and out where they stand while the next section
+                    // slides over them; here a section opens and closes like
+                    // an accordion and rows below move with it.
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(sections) { section in
+                                sectionView(section, categories: categories)
+                            }
+                            if isAdding {
+                                ListCard { addRow.padding(.horizontal, 16).padding(.vertical, 10) }
+                                    .padding(.top, 16)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 24)
                     }
-                    if isAdding {
-                        Section { addRow }
-                    }
+                    .background(Color(.systemGroupedBackground))
                 }
             }
-            .environment(\.editMode, .constant(router.isEditingLists ? .active : .inactive))
-            .listSectionSpacing(.compact)
             .scrollDismissesKeyboard(.immediately)
             .overlay {
                 if sections.isEmpty && !isAdding {
@@ -89,44 +104,95 @@ struct ListsView: View {
 
     // MARK: Sections
 
-    @ViewBuilder
     private func sectionView(_ section: ListSection, categories: [CategorySnapshot]) -> some View {
         let isCollapsed = router.lists.isCollapsed(section.id)
-        Section {
-            if let category = section.category, editingCategoryID == category.id {
-                CategoryEditRow(store: store, category: category) { editingCategoryID = nil }
-            }
-            if !isCollapsed {
-                if section.items.isEmpty, let category = section.category {
-                    Button {
-                        router.compose(in: category.id)
-                    } label: {
-                        Label("Add the first item", systemImage: "plus.circle")
-                            .foregroundStyle(.tint)
-                    }
-                    .accessibilityIdentifier("addFirst-\(category.name)")
-                }
-                ForEach(section.items) { item in
-                    ItemRow(
-                        store: store, item: item, categories: categories, showsCategory: false,
-                        offersUndoOnComplete: !router.lists.showsCompleted
-                    )
-                    .id(item.id)
-                }
-            }
-        } header: {
+        let isRenaming = section.category.map { $0.id == editingCategoryID } ?? false
+        return VStack(alignment: .leading, spacing: 4) {
             ListSectionHeader(
                 section: section,
                 isCollapsed: isCollapsed,
                 toggle: { toggle(section) },
                 add: {
-                    router.lists.expand(section.id)
+                    withAnimation(.snappy) { router.lists.expand(section.id) }
                     router.compose(in: section.category?.id)
                 },
-                rename: { editingCategoryID = section.category?.id },
+                rename: {
+                    // The rename row is in the section: open it to show it.
+                    withAnimation(.snappy) { router.lists.expand(section.id) }
+                    editingCategoryID = section.category?.id
+                },
                 delete: { section.category.map(delete) }
             )
+            .padding(.leading, 20)
+            .padding(.trailing, 4)
+            // Clipped, so the card slides up under the header and down from it.
+            VStack(spacing: 0) {
+                if isRenaming || !isCollapsed {
+                ListCard {
+                    if let category = section.category, isRenaming {
+                        CategoryEditRow(store: store, category: category) { editingCategoryID = nil }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                        if !isCollapsed { ListDivider() }
+                    }
+                    if !isCollapsed {
+                        if section.items.isEmpty, let category = section.category {
+                            Button {
+                                router.compose(in: category.id)
+                            } label: {
+                                Label("Add the first item", systemImage: "plus.circle")
+                                    .foregroundStyle(.tint)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 11)
+                            .accessibilityIdentifier("addFirst-\(category.name)")
+                        }
+                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 { ListDivider() }
+                            SwipeRow(
+                                id: item.id,
+                                open: $swipedItemID,
+                                isEnabled: router.expandedItemID != item.id,
+                                done: item.kind == .task ? { toggleDone(item) } : nil,
+                                delete: { deleteItem(item) }
+                            ) {
+                                ItemRow(
+                                    store: store, item: item, categories: categories, showsCategory: false,
+                                    offersUndoOnComplete: !router.lists.showsCompleted
+                                )
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 9)
+                            }
+                            .id(item.id)
+                        }
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .clipped()
         }
+        .padding(.top, 14)
+    }
+
+    // Animated, so the rows around a completed or deleted one close up.
+    private func toggleDone(_ item: ItemSnapshot) {
+        withAnimation(.snappy) { router.perform {
+            try store.setDone(item.id, !item.isDone)
+            if !router.lists.showsCompleted && !item.isDone {
+                undo.offer("Completed \u{201C}\(item.title)\u{201D}") { try store.setDone(item.id, false) }
+            }
+        } }
+    }
+
+    private func deleteItem(_ item: ItemSnapshot) {
+        withAnimation(.snappy) { router.perform {
+            try store.deleteItem(item.id)
+            if router.expandedItemID == item.id { router.expandedItemID = nil }
+            undo.offer("Deleted \u{201C}\(item.title)\u{201D}") { try store.restoreItem(item) }
+        } }
     }
 
     private func editedSectionID(in sections: [ListSection]) -> ListSectionID? {
@@ -434,5 +500,23 @@ private struct CategoryEditRow: View {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+/// A section's rounded card on the grouped background.
+private struct ListCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) { content }
+            .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 22))
+            .clipShape(.rect(cornerRadius: 22))
+    }
+}
+
+/// The separator between a card's rows, from where the titles start.
+private struct ListDivider: View {
+    var body: some View {
+        Divider().padding(.leading, 50).padding(.trailing, 16)
     }
 }
