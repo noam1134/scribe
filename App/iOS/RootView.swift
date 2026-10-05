@@ -29,7 +29,7 @@ struct RootView: View {
             }
             Tab(value: AppRouter.Tab.search, role: .search) {
                 NavigationStack {
-                    ComingNext(title: "Search")
+                    SearchView(store: store)
                 }
             }
         }
@@ -54,15 +54,5 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.refresh() }
         }
-    }
-}
-
-/// Stands in for a tab whose screen a later task builds. Task 10 deletes it.
-private struct ComingNext: View {
-    let title: String
-
-    var body: some View {
-        ContentUnavailableView(title, systemImage: "hammer")
-            .navigationTitle(title)
     }
 }
