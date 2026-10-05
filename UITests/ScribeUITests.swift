@@ -92,6 +92,13 @@ final class ScribeUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5))
     }
 
+    /// The widget's "+" (spec §8, §10.1) opens the composer through this link.
+    func testAddLinkOpensTheComposer() {
+        XCTAssertTrue(app.tabBars.buttons["Upcoming"].waitForExistence(timeout: 5))
+        app.open(URL(string: "scribe://add")!)
+        XCTAssertTrue(app.textFields["quickAddField"].waitForExistence(timeout: 5))
+    }
+
     func testDuplicateCategoryNameIsExplainedInline() {
         app.tabBars.buttons["Categories"].tap()
         for _ in 0..<2 {
