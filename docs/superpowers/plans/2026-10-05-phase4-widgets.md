@@ -95,3 +95,21 @@ Same as Phase 2 (`docs/superpowers/plans/2026-10-05-phase2-iphone-app.md`), plus
 7. **Widget configuration:** an empty Category means all categories (spec: nil = All).
 8. **Control is configurable:** optional category, so e.g. the Action Button can open quick-add in Thailand.
 9. **`CompleteTaskIntent` is hidden from Shortcuts** (`isDiscoverable = false`) — it takes a raw item id.
+
+## Simulator verification (2026-10-05, iPhone 17 Pro, iOS 26.3)
+
+Driven with throwaway XCUITest scripts against SpringBoard and Shortcuts; process names from the `com.noamchuri.scribe` log subsystem and the store's persistent history.
+
+| Check | Result |
+|---|---|
+| Widget gallery lists Scribe → Upcoming (small, medium, large; lock screen rectangular, circular) | Yes, all render (light, dark, lock screen) |
+| Widget shows the real store; configured with a category (picker lists categories via `CategoryQuery` in the extension) | Yes |
+| Widget checkbox | Runs `CompleteTaskIntent` in **ScribeWidgets**; item marked done in the shared file (history transaction by `com.noamchuri.scribe.widgets`); both widgets reload; the app shows it done |
+| Small-widget "+" and the Control | Run `OpenQuickAddIntent` in **Scribe** (app brought forward); composer opens |
+| Medium/large "+", row tap | `scribe://add` opens the composer; `scribe://item/<id>` opens the item's category with the row expanded (also from a cold launch) |
+| Shortcuts | Library shows Scribe with "Add to Scribe" and "Quick Add". Running Add to Scribe: "What should I add?" → "Buy milk tomorrow 9am" → "Which category should ‘Buy milk’ go in?" (thailand / work) → "Added ‘Buy milk’ to work, tomorrow at 09:00." — ran in **Scribe** |
+| Control gallery | "Add to Scribe" listed under Scribe; adds to Control Center; tapping opens the composer |
+| Background refresh | `BGTaskScheduler.submit` fails with `Unavailable` in the simulator (expected); device only |
+| Freshness stamp | Written to the App Group defaults when the app enters the background |
+
+Found and fixed while checking: an item or Upcoming link (widget row, widget background) opened underneath a composer left open earlier; those links now close it.

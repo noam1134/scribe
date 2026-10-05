@@ -68,14 +68,13 @@ Deferred in the Phase 2 (iPhone app) reviews.
 
 ## Phase 4 (widgets, Control, Siri)
 
-- **Every add needs a category (spec §19).** `AddItemIntent` / Siri / the Control must ask for a category (Siri disambiguation over `CategoryEntity`) or infer one — never file to the Inbox silently.
-- Verify App Intents registration on device (Shortcuts listed nothing on the iPhone in Phase 0) and the widget/Control write path in the simulator and on device; record which process runs each intent (spec §18).
-- `StoreFactory.shared` must be called once per process; an intent running inside the app needs the app's container.
-- Verify a `BGAppRefreshTask` actually triggers an import; fallback is showing data age (spec §18).
-- Mac desktop widget (M7) and Control on macOS (Q5).
-- Widget needs an error state if the store can't open.
-- Verify widget/intent writes post `NSPersistentStoreRemoteChange`, so the open app refreshes (scene activation is the backstop).
-- Verify a cold-launch `scribe://item/<id>` pushes the category screen (only `scribe://add` was tried).
+Built and checked in the simulator (see the Phase 4 plan). Still open:
+
+- **Device checks** (simulator can't prove them): Shortcuts lists Scribe on the iPhone; the widget checkbox's extension write reaches the Mac via iCloud after the iPhone app next opens; `BGAppRefreshTask` runs and actually triggers an iCloud import (the simulator refuses BG tasks); Mac desktop widget (M7) reads the Mac store; "Add to Scribe" Control appears in the Mac's Control Center / menu bar (Q5); an open Mac app refreshes when the desktop widget's checkbox writes (cross-process `NSPersistentStoreRemoteChange`; activation is the backstop); Siri voice flow with category disambiguation.
+- Tinted and clear home-screen modes weren't looked at (light, dark and the lock screen were).
+- Widget checkboxes are 15 pt tap targets.
+- Siri can't create a category from an unknown `#tag` (the tag stays in the title and Siri asks for an existing category).
+- Per-category Siri phrases ("Add to Thailand in Scribe") would need `updateAppShortcutParameters()` whenever categories change.
 
 ## Phase 5–6
 

@@ -38,11 +38,14 @@ final class AppRouter {
     func open(_ link: DeepLink, store: any ItemStore) {
         switch link {
         case .upcoming:
+            // A composer left open (e.g. after the widget's "+") would hide it.
+            isComposing = false
             tab = .upcoming
         case .add(let categoryID):
             compose(in: categoryID)
         case .item(let id):
             guard let item = store.item(id) else { return }
+            isComposing = false
             tab = .categories
             categoriesPath = [item.categoryID.map(Destination.category) ?? .inbox]
             expandedItemID = id
