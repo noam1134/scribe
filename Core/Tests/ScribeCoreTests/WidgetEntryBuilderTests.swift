@@ -186,6 +186,28 @@ struct WidgetEntryBuilderTests {
         #expect(plan.entries.map(\.date) == [late, midnight])
     }
 
+    /// Israel leaves daylight saving time at 02:00 on Sunday 2026-10-25,
+    /// so that day lasts 25 hours.
+    @Test func midnightAcrossTheEndOfDaylightSavingTime() throws {
+        let saturday = TestCalendar.date(2026, 10, 24, 22, 0)
+        let sundayMidnight = TestCalendar.date(2026, 10, 25, 0, 0)
+        let mondayMidnight = TestCalendar.date(2026, 10, 26, 0, 0)
+        #expect(mondayMidnight.timeIntervalSince(sundayMidnight) == 25 * 60 * 60)
+
+        let items = [task("sunday", LocalDay(2026, 10, 25)), task("monday", LocalDay(2026, 10, 26))]
+        let before = timeline(items, at: saturday)
+        #expect(before.entries.map(\.date) == [saturday, sundayMidnight])
+        #expect(before.refreshAt == sundayMidnight)
+        #expect(try agenda(before.entries.last).sections.first?.rows.map(\.title) == ["sunday"])
+
+        let sundayNoon = TestCalendar.date(2026, 10, 25, 12, 0)
+        let during = timeline(items, at: sundayNoon)
+        #expect(during.entries.map(\.date) == [sundayNoon, mondayMidnight])
+        let monday = try agenda(during.entries.last).sections
+        #expect(monday.map(\.title) == ["Overdue", "Today"])
+        #expect(monday.map { $0.rows.map(\.title) } == [["sunday"], ["monday"]])
+    }
+
     // MARK: Data age
 
     @Test func freshDataHasNoAgeLabel() {

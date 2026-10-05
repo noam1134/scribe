@@ -151,6 +151,29 @@ struct StoreItemTests {
         #expect(all.first?.id == memo, "dated items first, like a category list")
     }
 
+    /// What widgets read: open items with a date, never the done tasks
+    /// that pile up over the years.
+    @Test func datedOpenItemsHoldEverythingAnAgendaCanShow() throws {
+        let clock = TestClock()
+        let store = try makeStore(clock: clock)
+        let work = try store.addCategory(CategoryDraft(name: "Work"))
+        let late = try store.addItem(ItemDraft(title: "late", categoryID: work, due: DueDate(day: LocalDay(2026, 10, 1))))
+        let soon = try store.addItem(ItemDraft(title: "soon", due: DueDate(day: LocalDay(2026, 10, 6), minute: 9 * 60)))
+        let memo = try store.addItem(ItemDraft(title: "memo", kind: .memo, due: DueDate(day: LocalDay(2026, 10, 5))))
+        let far = try store.addItem(ItemDraft(title: "far", due: DueDate(day: LocalDay(2027, 1, 1))))
+        _ = try store.addItem(ItemDraft(title: "undated"))
+        _ = try store.addItem(ItemDraft(title: "undated memo", kind: .memo))
+        let done = try store.addItem(ItemDraft(title: "done", due: DueDate(day: LocalDay(2026, 10, 5))))
+        try store.setDone(done, true)
+
+        let dated = store.datedOpenItems()
+        #expect(dated.map(\.id) == [late, memo, soon, far])
+        for moment in [clock.now, TestCalendar.date(2026, 10, 6, 0, 0), TestCalendar.date(2026, 12, 30)] {
+            #expect(AgendaBuilder.build(items: dated, scope: .all, now: moment, calendar: TestCalendar.jerusalem)
+                == store.agenda(.all, now: moment))
+        }
+    }
+
     @Test func hebrewSearchWorks() throws {
         let store = try makeStore()
         let id = try store.addItem(ItemDraft(title: "לקנות חלב"))

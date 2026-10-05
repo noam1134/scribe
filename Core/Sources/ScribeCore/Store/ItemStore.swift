@@ -95,6 +95,10 @@ public protocol ItemStore: AnyObject, Observable {
     var categories: [CategorySnapshot] { get }
     func items(_ filter: ItemFilter) -> [ItemSnapshot]
     func item(_ id: UUID) -> ItemSnapshot?
+    /// Open tasks and memos that have a date — everything an agenda can
+    /// show at any moment, without the done tasks that pile up over time.
+    /// For widgets, which must stay small. Sorted by due date.
+    func datedOpenItems() -> [ItemSnapshot]
     func agenda(_ scope: CategoryScope, now: Date) -> Agenda
 
     @discardableResult func addItem(_ draft: ItemDraft) throws -> UUID

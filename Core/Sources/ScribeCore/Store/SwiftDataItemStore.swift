@@ -57,6 +57,18 @@ public final class SwiftDataItemStore: ItemStore {
         return try? itemModel(id, in: ModelContext(container)).snapshot
     }
 
+    public func datedOpenItems() -> [ItemSnapshot] {
+        _ = revision
+        let memo = ItemKind.memo.rawValue
+        let descriptor = FetchDescriptor<Item>(predicate: #Predicate { $0.dueDay != nil && (!$0.isDone || $0.kindRaw == memo) })
+        do {
+            return try ModelContext(container).fetch(descriptor).map(\.snapshot).sorted(by: ItemOrdering.byDue)
+        } catch {
+            assertionFailure("Item fetch failed: \(error)")
+            return []
+        }
+    }
+
     public func agenda(_ scope: CategoryScope, now: Date) -> Agenda {
         _ = revision
         let all = fetchItems(ModelContext(container)).map(\.snapshot)
