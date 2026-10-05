@@ -54,7 +54,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]: App/Scribe-iOS.entitlements
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/Scribe-macOS.entitlements
         ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
-        LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]: "@executable_path/../Frameworks"
+        LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]: ["$(inherited)", "@executable_path/../Frameworks"]
   ScribeWidgets:
     type: app-extension
     supportedDestinations: [iOS, macOS]
