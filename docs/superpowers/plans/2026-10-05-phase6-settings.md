@@ -31,9 +31,9 @@ Phase 2's constraints apply (Swift 6, iOS/macOS 26, ScribeCore imports only Foun
 | `App/Shared/SettingsExport.swift` | Export to a temp file; iPhone share sheet; Mac save panel item | 4 |
 | `App/Shared/SettingsDemo.swift` | DEBUG `-uiTesting` states for tests and screenshots (`-demoSync`, `-demoPermission`) | 4 |
 | `App/Shared/NotificationCoordinator.swift` | `requestPermission()` is a no-op when notifications are inactive in a UI-test run | 4 |
-| `App/iOS/SettingsButton.swift` | Gear button → sheet with `SettingsView` and Done; DEBUG test entry (`-settingsButton`, `-showSettings`) | 5 |
+| `App/iOS/SettingsButton.swift` | Gear button → sheet with `SettingsView`, closed with the toolbar's X; DEBUG test entry (`-settingsButton`, `-showSettings`) | 5 |
 | `App/ScribeApp.swift` | `MacSettingsScene` (macOS); the iOS DEBUG test entry modifier | 5, 6 |
-| `App/macOS/MacSettings.swift` | `Settings` scene; quick-add hotkey section (recorder, system-conflict warning, restore default) | 6 |
+| `App/macOS/MacSettings.swift` | `Settings` scene; quick-add hotkey section (recorder, system-conflict warning, restore default); DEBUG `-showSettings` | 6 |
 | `App/macOS/QuickAddHotkey.swift`, `MenuBarPanel.swift` | Observable hotkey status (menu bar note follows the recorder); Phase 4 follow-up: forward `IntentLinkInbox` links from the menu bar label | 6, 7 |
 | `App/Scribe-macOS.entitlements` | `com.apple.security.files.user-selected.read-write` (save panel) | 6 |
 | `UITests/SettingsUITests.swift` | Open Settings from the button, sync/notification/export/about rows, share sheet, denied permission | 5 |
@@ -88,15 +88,15 @@ Grouped `Form`, sections in order:
 
 ### Task 5: iPhone entry + UI tests
 
-`SettingsButton` — `Button("Settings", systemImage: "gear")` (identifier `settingsButton`) that presents `NavigationStack { SettingsView }` in a sheet with a Done button. Self-contained: reads the `StoreLoader` from the environment. The controller places it in the Lists tab's toolbar at merge.
+`SettingsButton` — `Button("Settings", systemImage: "gear")` (identifier `settingsButton`) that presents `NavigationStack { SettingsView }` in a sheet closed with the toolbar's X (`Button(role: .close)`; changes apply as they're made). Self-contained: reads the `StoreLoader` from the environment. The controller places it in the Lists tab's toolbar at merge.
 
 Test entry (DEBUG, `-uiTesting` only): `-settingsButton` overlays a `SettingsButton` on the app root so the test taps the real button; `-showSettings` presents the sheet at launch (simulator screenshots). Applied as one modifier in `ScribeApp`.
 
-`SettingsUITests`: (1) the button opens Settings: "Sync off — sign in to iCloud", the notification switches, the summary time hides when the summary is off and returns, Export and Version rows, Done closes it; (2) signed-in demo shows "Last synced"; (3) Export opens the share sheet; (4) denied permission shows the explanation and Open Settings. Launch arguments pin the `notifications.*` values so toggles don't leak into later runs.
+`SettingsUITests`: (1) the button opens Settings: "Sync off — sign in to iCloud", the notification switches, the summary time hides when the summary is off and returns, Export and Version rows, X closes it; (2) signed-in demo shows "Last synced"; (3) Export opens the share sheet, which names `Scribe-<date>` (JSON); (4) the offline demo shows the problem line, and denied permission shows the explanation and Open Settings until the switch is turned off. Launch arguments pin the `notifications.*` values so toggles don't leak into later runs.
 
 ### Task 6: Mac Settings scene + hotkey
 
-`MacSettingsScene(loader:)` — `Settings { SettingsView }` (⌘,), one pane, ~460 pt wide. Quick Add section: `KeyboardShortcuts.Recorder("Quick Add", name: .quickAdd)` (its own dialogs: a macOS shortcut asks "Use Anyway", a menu shortcut is refused), the saved shortcut's system-conflict warning, "No shortcut" note when cleared, and "Restore ⌃⇧Space" when it differs from the default. `QuickAddHotkey`'s status becomes observable so the menu bar note follows changes. Entitlement for the save panel.
+`MacSettingsScene(loader:)` — `Settings { SettingsView }` (⌘,), one pane, a fixed 480 × 640 pt window whose form scrolls (a resizable one grew to the main window's width). Quick Add section: `KeyboardShortcuts.Recorder("Quick Add", name: .quickAdd)` (its own dialogs: a macOS shortcut asks "Use Anyway", a menu shortcut is refused), the saved shortcut's system-conflict warning, "No shortcut" note when cleared, and "Restore ⌃⇧Space" when it differs from the default. `QuickAddHotkey`'s status becomes observable so the menu bar note follows changes. Entitlement for the save panel.
 
 ### Task 7: Phase 4 follow-up — Mac intent link with no window
 
@@ -115,8 +115,14 @@ Spec §21; backlog (Phase 6 section → follow-ups; stale Phase 4/5 lines; the M
 5. **Notifications:** the switch is per device (§11). Turning it on asks for permission — the only place the Mac asks. The summary switch is disabled while notifications are off (its value is kept); the time picker shows only while the summary is on. The denied explanation shows only while the switch is on.
 6. **Summary time** is edited on a fixed reference day, so a DST day can never shift the stored minute. The picker follows the device's 12/24-hour setting (system control).
 7. **Export:** iPhone — the share sheet (AirDrop, Files, Mail…), with the file written when the button is tapped; Mac — the save panel. Preparing the file first (instead of `ShareLink` exporting lazily inside the sheet) is what lets a failure show "Couldn’t Export" with its sentence. The name uses the device's local date: `Scribe-2026-10-05.json`.
-8. **iPhone entry** is a gear `SettingsButton` presenting a sheet with Done; placement is the controller's (spec §9.2 says the Categories toolbar; that tab is becoming Lists).
+8. **iPhone entry** is a gear `SettingsButton` presenting a sheet closed with the iOS 26 X (`.close` role — nothing to confirm, and no second prominent button); placement is the controller's (spec §9.2 says the Categories toolbar; that tab is becoming Lists).
 9. **UI test entry:** DEBUG-only `-settingsButton` overlays the real button on the app root (and `-showSettings` opens it at launch for screenshots) — no edit to the iPhone screens. After the merge the test can tap the toolbar button instead.
 10. **Mac hotkey:** KeyboardShortcuts' recorder with its default conflict policy; the persistent orange warning reuses the menu bar's sentence. "Restore ⌃⇧Space" resets to the default. A cleared shortcut leaves quick add in the menu bar.
 11. **No Settings link in the menu bar panel:** the panel hands activation back to the previous app when it closes, which would push a just-opened Settings window behind it. ⌘, and the app menu are the way in.
 12. **Version line:** "0.1 (1)" from the bundle (`CFBundleShortVersionString`, `CFBundleVersion`).
+
+## Implementation notes
+
+- Screenshots: iPhone with `xcrun simctl launch … -uiTesting -showSettings -demoSync … -demoPermission …`; Mac from a background-launched Debug build (`open -g -n … --args -uiTesting -demoData -showSettings …`, `screencapture -l <window>`), never driven.
+- `SyncMonitor` keeps the CloudKit container it makes, so `CKAccountChanged` keeps arriving; a Mac process without the iCloud entitlement never makes one.
+- `QuickAddHotkey.status` is now backed by an `@Observable` state, refreshed at install, when Settings appears and after the recorder or Restore changes the shortcut.

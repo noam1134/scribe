@@ -62,7 +62,7 @@ The Mac UI, deep-link drain, activation refresh, `KeyboardShortcuts` (macOS-only
 
 - **Mac CloudKit.** After the 2026-10-05 Development reset, the Mac app's CloudKit setup fails with `CKErrorDomain 6` (service unavailable) while the iPhone works; clearing the app's CloudKit cache and restarting `cloudd` did not help. Try a Mac restart / iCloud sign-out-in first. Then re-run the cross-device check in both directions.
 - **Mac push.** `registerForRemoteNotifications()` is back; registration, every push and every CloudKit setup/import/export is logged (`log stream --level info --predicate 'subsystem == "com.noamchuri.scribe"'`, categories `push`, `sync`, `hotkey`). A signed run must show whether pushes reach the app and whether an import follows (spec §18).
-- **Hotkey is ⌃⇧Space** (spec §8, §19: ⌃⌥Space is macOS's "Select next source in Input menu" on the author's Mac). The menu bar panel warns if the shortcut is also a macOS one. Phase 6's recorder can change it.
+- **Hotkey is ⌃⇧Space** (spec §8, §19: ⌃⌥Space is macOS's "Select next source in Input menu" on the author's Mac). The menu bar panel warns if the shortcut is also a macOS one. Settings' recorder changes it (Phase 6).
 - **Activation.** Opening the menu bar extra activates the app (spec §18), which brings the main window forward behind it; closing hands activation back unless the user went on in Scribe. The hotkey panel never activates the app. Judge the feel on the author's Mac.
 - A menu path back to a closed main window (New Item could open the main window when none is open).
 - `handlesExternalEvents` is only on the ready root; add it to the loading and failed roots too.
@@ -77,7 +77,7 @@ The Mac UI, deep-link drain, activation refresh, `KeyboardShortcuts` (macOS-only
 
 Built and checked in the simulator (see the Phase 4 plan). Still open:
 
-- **Device checks** (simulator can't prove them): Shortcuts lists Scribe on the iPhone; the widget checkbox's extension write reaches the Mac via iCloud after the iPhone app next opens; `BGAppRefreshTask` runs and actually triggers an iCloud import (the simulator refuses BG tasks); Mac desktop widget (M7) reads the Mac store; "Add to Scribe" Control appears in the Mac's Control Center / menu bar (Q5); an open Mac app refreshes when the desktop widget's checkbox writes (cross-process `NSPersistentStoreRemoteChange`; activation is the backstop); Siri voice flow with category disambiguation.
+- **Device checks** (simulator can't prove them): Shortcuts lists Scribe on the iPhone; a widget tick on the iPhone (it runs in the app process) reaches the Mac via iCloud without opening the app; ticking a timed task on the Mac desktop widget with the Mac app closed removes its alert; `BGAppRefreshTask` runs and actually triggers an iCloud import (the simulator refuses BG tasks); Mac desktop widget (M7) reads the Mac store; "Add to Scribe" Control appears in the Mac's Control Center / menu bar (Q5); an open Mac app refreshes when the desktop widget's checkbox writes (cross-process `NSPersistentStoreRemoteChange`; activation is the backstop); Siri voice flow with category disambiguation.
 - Siri can't create a category from an unknown `#tag` (the tag stays in the title and Siri asks for an existing category).
 - Per-category Siri phrases ("Add to Thailand in Scribe") would need `updateAppShortcutParameters()` whenever categories change.
 
@@ -96,15 +96,24 @@ From the Phase 4 review.
 ## Phase 5 follow-ups
 
 - **Device check** of notifications (permission prompt, a due-time alert, the morning summary, Done / +1 hour / Tomorrow from the lock screen with the app suspended and force-quit). Steps in the Phase 5 report.
-- **Stale alerts on iPhone.** Notifications are planned from the data the iPhone has; an item changed on the Mac re-plans only when the iPhone app imports it (spec §18). On activation that is automatic; a background refresh task or an intent running in the app process must `await NotificationCoordinator.shared.rescheduleNow()` (it opens the store if needed) before finishing.
-- **Widget Complete intent** should withdraw the item's alert: remove `PlannedNotification.identifier(forItem:)` from pending and delivered requests.
+- **Stale alerts on iPhone.** Notifications are planned from the data the iPhone has; an item changed on the Mac re-plans only when the iPhone app imports it (activation, background refresh — spec §18).
 - Notification text is English ("Today: 3", "Overdue: 2", "+1 Hour") — decide at localization.
 - An item moved by "+1 hour" inside the hour repeated by the autumn DST change lands on the first, already-passed copy of that time and gets no new alert.
 
-## Phase 6 (Settings)
+## Phase 6 follow-ups
 
-- Bind to `NotificationCoordinator.shared`: `settings` (`isEnabled`, `morningSummaryEnabled`, `morningSummaryMinute`), `permission` (`.denied` → explain and link `NotificationCoordinator.systemSettingsURL`), `requestPermission()`. Turning notifications on (the Mac's default is off) should call `requestPermission()`, so the prompt comes from the switch even before anything is scheduled.
-- "Last synced" should use the CloudKit event's `endDate`.
+Settings shipped (spec §21). Still open:
+
+- **Placement.** Put `SettingsButton` in the toolbar of the iPhone's Lists tab (it replaces Categories); then `SettingsUITests` can tap it there and the DEBUG `-settingsButton` overlay can go.
+- **Device checks** (the simulator has no iCloud and the Mac UI wasn't driven):
+  - Signed-in iPhone and Mac: "Syncing with iCloud"; "Last synced" moves after an edit here (export) and after a change from the other device (import).
+  - Airplane Mode, then an edit: the "Offline — …" line; it clears once an upload succeeds.
+  - Sign out of iCloud (or turn iCloud off for Scribe) with Settings open: "Sync off — sign in to iCloud" without relaunching (`CKAccountChanged`); back after signing in.
+  - Mac: turning "Notifications on This Mac" on shows the system prompt; after denying, "Open System Settings" lands on Scribe's notification page.
+  - Mac: "Export All as JSON…" saves through the panel in a signed (sandboxed) build; iPhone: the share sheet's Save to Files and AirDrop deliver a readable `Scribe-yyyy-MM-dd.json`.
+  - Mac recorder: a new shortcut works at once and the menu bar note follows; Restore ⌃⇧Space; recording a macOS shortcut asks "Use Anyway" and then shows the warning.
+- The summary time picker follows the device's 12/24-hour setting; the rest of the app shows 24-hour times (decide at localization).
+- Import from a JSON export isn't built (spec §17 migration path).
 
 ## Later (after v1)
 
