@@ -6,6 +6,8 @@ public enum ItemFilter: Hashable, Sendable {
     case category(UUID)
     /// Title + body, case/diacritic-insensitive, includes done items.
     case search(String)
+    /// Every item, done ones included.
+    case all
 }
 
 public struct ItemDraft: Equatable, Sendable {
