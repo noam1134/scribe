@@ -1,6 +1,60 @@
-# Backlog — carried out of Phases 0–1
+# Backlog — carried out of Phases 0–2
 
 Items deferred during review. Each later phase plan must pick up the ones for its phase.
+
+## Phase 2 follow-ups
+
+Deferred in the Phase 2 (iPhone app) reviews.
+
+### Quick-add
+
+- A time-only phrase that rolls to tomorrow shows only "09:00" on its chip — label it "Tomorrow · 09:00" when no date token was typed; "this morning"/"this evening" roll to tomorrow once passed (ask the author).
+- A dismissed chip disables that kind for the rest of the composition (re-enable it when the dismissed text is gone? Product call).
+- The 150 pt sheet clips at accessibility text sizes.
+- The kind toggle ignores a typed `!memo`, and its accessibility label lacks a value.
+- An add link doesn't retarget an already-open composer.
+- A half-typed draft is lost if iOS terminates the app.
+
+### Lists, rows and editor
+
+- Upcoming doesn't roll to the new day if the app stays open past midnight (refresh on a significant time change).
+- "Add Time…" shows 09:00 but sets nothing until the wheel is scrolled.
+- `expandedItemID` lingers after the item leaves the list.
+- An item link to a done item opens inside the collapsed Done group (expand it).
+- Accessibility: no button trait on tap-to-edit, ~22 pt checkbox, no focus on expand.
+
+### Categories
+
+- A restored category may tie on `sortIndex` and skips the duplicate-name check.
+- Reorder is index-based across a possible sync gap (move by ids).
+- Colour swatches lack button/selected traits, have 26 pt targets, and draw a white check on yellow/mint/cyan.
+- A whitespace-only add leaves the text in the field.
+- The add field can only be dismissed with Return.
+- The emoji placeholder symbol should be `.accessibilityHidden(true)`.
+
+### Undo toast
+
+- `.transition` never animates (add `.animation(.snappy, value: undo.current?.id)`).
+- 120 pt magic bottom padding.
+- The store-failure title uses an ASCII apostrophe ("Can't").
+
+### Labels
+
+- "Today/Tomorrow/Memo/Next Week" are English while weekday/month names follow the locale (decide at localization).
+
+### Tests to add
+
+- UI tests: chip taps, the sheet alert, the editor, the category edit row, category delete + undo, reorder, Search.
+- Core tests: empty/out-of-range `IndexSet`, restore after an item was deleted, day-part edge phrases.
+- Core tests: `UndoCenter` (throwing undo, dismiss, replaced-offer timer).
+- Core tests: `QuickAddComposer` `reset()`, `createUnknownCategory` no-op, save keeping the text when `addItem` throws.
+- `AppRouter.open` / `visibleCategoryID` / Retry (consider moving link resolution into Core).
+- `offersExpire` uses a wall-clock sleep (watch for flakes).
+
+### Code
+
+- The unknown-tag re-parse duplicates `QuickAddParser.nonInteractiveDraft` (give it a `disabled:` parameter).
+- The "Inbox" literal is repeated in six places.
 
 ## Phase 3 (Mac app)
 
@@ -10,6 +64,7 @@ Items deferred during review. Each later phase plan must pick up the ones for it
 - **Mac push.** The Mac app received no CloudKit pushes in Phase 0 even with `registerForRemoteNotifications()` (spec §18). Re-add the registration and investigate.
 - **KeyboardShortcuts** dependency must be macOS-only on the multiplatform target (`destinationFilters`).
 - **Runpath.** Add `@executable_path/../Frameworks` for macOS before embedding any dynamic framework.
+- **Activation refresh.** The Mac root also needs the `scenePhase` → `store.refresh()` activation hook the iPhone `RootView` has.
 
 ## Phase 4 (widgets, Control, Siri)
 
@@ -18,6 +73,8 @@ Items deferred during review. Each later phase plan must pick up the ones for it
 - Verify a `BGAppRefreshTask` actually triggers an import; fallback is showing data age (spec §18).
 - Mac desktop widget (M7) and Control on macOS (Q5).
 - Widget needs an error state if the store can't open.
+- Verify widget/intent writes post `NSPersistentStoreRemoteChange`, so the open app refreshes (scene activation is the backstop).
+- Verify a cold-launch `scribe://item/<id>` pushes the category screen (only `scribe://add` was tried).
 
 ## Phase 5–6
 
