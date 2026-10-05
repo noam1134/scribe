@@ -100,4 +100,20 @@ struct ParserDateTests {
         let mondayFirst = QuickAddParser(calendar: TestCalendar.make(timeZone: "Asia/Jerusalem", firstWeekday: 2))
         #expect(F.parse("x next week", parser: mondayFirst).due == DueDate(day: F.day(10, 12)))
     }
+
+    static let leadInCases: [(String, String, LocalDay)] = [
+        ("dinner with Dan on friday", "dinner with Dan", F.day(10, 9)),
+        ("meeting this friday", "meeting", F.day(10, 9)),
+        ("submit report by fri", "submit report", F.day(10, 9)),
+        ("pay rent on 12/10", "pay rent", F.day(10, 12)),
+        ("call back by tomorrow", "call back", F.day(10, 6)),
+        ("visa on oct 12", "visa", F.day(10, 12)),
+    ]
+
+    @Test(arguments: leadInCases)
+    func englishLeadInsBeforeADate(text: String, title: String, day: LocalDay) {
+        let draft = F.parse(text)
+        #expect(draft.title == title)
+        #expect(draft.due == DueDate(day: day))
+    }
 }

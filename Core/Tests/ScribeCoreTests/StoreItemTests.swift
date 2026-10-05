@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 import Testing
 @testable import ScribeCore
 
@@ -168,5 +169,30 @@ struct StoreItemTests {
         }
         store.refresh()
         #expect(flag.fired)
+    }
+
+    /// The widget extension and intents open the same file with their own
+    /// container; the app's next read must see their writes.
+    @Test func readsSeeWritesFromAnotherContainer() throws {
+        let url = URL.temporaryDirectory.appending(path: "scribe-\(UUID().uuidString).store")
+        defer {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(at: URL(filePath: url.path() + suffix))
+            }
+        }
+        let schema = StoreFactory.schema
+        func open() throws -> ModelContainer {
+            try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none))
+        }
+        let app = SwiftDataItemStore(container: try open(), calendar: TestCalendar.jerusalem)
+        let widget = SwiftDataItemStore(container: try open(), calendar: TestCalendar.jerusalem)
+        let id = try app.addItem(ItemDraft(title: "from app"))
+        _ = app.items(.inbox)
+        try widget.setDone(id, true)
+        try widget.addItem(ItemDraft(title: "from widget"))
+        try widget.updateItem(id) { $0.title = "renamed by widget" }
+        #expect(app.item(id)?.title == "renamed by widget")
+        #expect(app.item(id)?.isDone == true)
+        #expect(Set(app.items(.inbox).map(\.title)) == ["renamed by widget", "from widget"])
     }
 }

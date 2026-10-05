@@ -31,6 +31,14 @@ public struct ItemEdit: Equatable, Sendable {
     public var kind: ItemKind
     public var categoryID: UUID?
     public var due: DueDate?
+
+    public init(title: String, body: String, kind: ItemKind, categoryID: UUID?, due: DueDate?) {
+        self.title = title
+        self.body = body
+        self.kind = kind
+        self.categoryID = categoryID
+        self.due = due
+    }
 }
 
 public struct CategoryDraft: Equatable, Sendable {
@@ -49,6 +57,12 @@ public struct CategoryEdit: Equatable, Sendable {
     public var name: String
     public var emoji: String
     public var colorName: String
+
+    public init(name: String, emoji: String, colorName: String) {
+        self.name = name
+        self.emoji = emoji
+        self.colorName = colorName
+    }
 }
 
 public enum StoreError: Error, Equatable {
@@ -80,6 +94,7 @@ public protocol ItemStore: AnyObject, Observable {
 
     @discardableResult func addCategory(_ draft: CategoryDraft) throws -> UUID
     func updateCategory(_ id: UUID, _ edit: (inout CategoryEdit) -> Void) throws
+    /// `index` is the category's final position in the sorted list (clamped).
     func moveCategory(_ id: UUID, toIndex index: Int) throws
     /// Items in the category move to the Inbox.
     func deleteCategory(_ id: UUID) throws

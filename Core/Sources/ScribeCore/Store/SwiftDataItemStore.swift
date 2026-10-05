@@ -151,8 +151,13 @@ public final class SwiftDataItemStore: ItemStore {
         let category = try categoryModel(id, in: context)
         var fields = CategoryEdit(name: category.name, emoji: category.emoji, colorName: category.colorName)
         edit(&fields)
-        let name = try validCategoryName(fields.name, excluding: id, in: context)
-        try Self.validateColor(fields.colorName)
+        // Validate only what changed: a same-named twin that arrived by sync
+        // must not block an emoji or color edit.
+        let renamed = TextNormalizer.key(fields.name) != TextNormalizer.key(category.name)
+        let name = renamed
+            ? try validCategoryName(fields.name, excluding: id, in: context)
+            : fields.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if fields.colorName != category.colorName { try Self.validateColor(fields.colorName) }
         category.name = name
         category.emoji = fields.emoji
         category.colorName = fields.colorName

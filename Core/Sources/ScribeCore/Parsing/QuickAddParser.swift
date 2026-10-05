@@ -40,13 +40,15 @@ public struct QuickAddParser: Sendable {
 
         var end = words.count
         var used = Set<TokenKind>()
+        var foundTimes: [TimeValue] = []
         var found: [(start: Int, text: String, recognition: Recognition)] = []
         scanning: while end > 0 {
             for length in stride(from: min(Self.maxPhraseWords, end), through: 1, by: -1) {
                 let phrase = words[(end - length)..<end].joined(separator: " ")
                 guard let recognition = recognize(phrase, today: today, categories: categories),
-                      !used.contains(recognition.tokenKind) else { continue }
+                      Self.canUse(recognition, used: used, foundTimes: foundTimes) else { continue }
                 used.insert(recognition.tokenKind)
+                if case .time(let value) = recognition { foundTimes.append(value) }
                 found.append((end - length, phrase, recognition))
                 end -= length
                 continue scanning
@@ -58,7 +60,7 @@ public struct QuickAddParser: Sendable {
         var draft = ParsedDraft(title: "", kind: .task, category: .none, due: nil, tokens: [])
         var titleWords = Array(words[0..<end])
         var date: LocalDay?
-        var time: TimeValue?
+        var times: [TimeValue] = []
         for token in found {
             guard !disabled.contains(token.recognition.tokenKind) else {
                 titleWords.append(token.text)
@@ -69,11 +71,11 @@ public struct QuickAddParser: Sendable {
             case .category(let match): draft.category = match
             case .kind(let kind): draft.kind = kind
             case .date(let day): date = day
-            case .time(let value): time = value
+            case .time(let value): times.append(value)
             }
         }
         draft.title = titleWords.joined(separator: " ")
-        draft.due = resolveDue(date: date, time: time, today: today, now: now)
+        draft.due = resolveDue(date: date, time: Self.combine(times), today: today, now: now)
         return draft
     }
 
@@ -120,6 +122,26 @@ public struct QuickAddParser: Sendable {
     }
 
     // MARK: Due date resolution
+
+    /// Each kind is used once, except that "tonight" / "הערב" may pair with
+    /// one explicit time ("tonight at 9", "הערב ב-9").
+    private static func canUse(_ recognition: Recognition, used: Set<TokenKind>, foundTimes: [TimeValue]) -> Bool {
+        guard case .time(let value) = recognition else { return !used.contains(recognition.tokenKind) }
+        switch foundTimes.count {
+        case 0: return true
+        case 1: return foundTimes[0].pinsToday != value.pinsToday
+        default: return false
+        }
+    }
+
+    /// "tonight" plus an explicit time: today at that time, and an hour of
+    /// 1–11 without am/pm reads as evening ("tonight at 9" → 21:00).
+    private static func combine(_ times: [TimeValue]) -> TimeValue? {
+        guard times.count == 2, let explicit = times.first(where: { !$0.pinsToday }) else { return times.first }
+        let isMorningHour = (60..<(12 * 60)).contains(explicit.minute)
+        let minute = !explicit.isUnambiguous && isMorningHour ? explicit.minute + 12 * 60 : explicit.minute
+        return TimeValue(minute: minute, pinsToday: true, isUnambiguous: true)
+    }
 
     private func resolveDue(date: LocalDay?, time: TimeValue?, today: LocalDay, now: Date) -> DueDate? {
         switch (date, time) {

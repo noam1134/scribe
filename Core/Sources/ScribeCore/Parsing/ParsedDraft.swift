@@ -43,4 +43,7 @@ struct TimeValue: Equatable, Sendable {
     let minute: Int
     /// "tonight" / "הערב" mean today even if 20:00 already passed.
     let pinsToday: Bool
+    /// Written with am/pm (or a named time like "noon"). Next to "tonight", a
+    /// time without it reads as evening: "tonight at 9" is 21:00.
+    var isUnambiguous: Bool = false
 }

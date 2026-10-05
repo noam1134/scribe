@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import ScribeCore
 
@@ -80,5 +81,31 @@ struct StoreCategoryTests {
         try store.addItem(ItemDraft(title: "inbox"))
         try store.setDone(done, true)
         #expect(store.categories.first?.openCount == 2)
+    }
+
+    /// Two devices can each create "Work" before they sync. Editing one of
+    /// the twins must still work as long as the edit doesn't touch the name.
+    @Test func editingASyncedTwinOnlyChecksWhatChanged() throws {
+        let container = try StoreFactory.inMemory()
+        let context = ModelContext(container)
+        let first = Category(name: "Work", sortIndex: 0)
+        let twin = Category(name: "Work", sortIndex: 1)
+        context.insert(first)
+        context.insert(twin)
+        try context.save()
+        let store = SwiftDataItemStore(container: container, calendar: TestCalendar.jerusalem)
+
+        try store.updateCategory(twin.id) {
+            $0.colorName = "teal"
+            $0.emoji = "💼"
+        }
+        #expect(store.categories.first { $0.id == twin.id }?.colorName == "teal")
+
+        try store.updateCategory(twin.id) { $0.name = "WORK" } // same name, new case
+        #expect(store.categories.first { $0.id == twin.id }?.name == "WORK")
+
+        try store.updateCategory(twin.id) { $0.name = "Side projects" }
+        let other = try store.addCategory(CategoryDraft(name: "Home"))
+        #expect(throws: StoreError.duplicateCategoryName) { try store.updateCategory(other) { $0.name = "side projects" } }
     }
 }

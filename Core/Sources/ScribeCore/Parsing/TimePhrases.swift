@@ -8,21 +8,21 @@ enum TimePhrases {
         for prefix in ["at ", "בשעה ", "ב-", "ב"] where phrase.hasPrefix(prefix) {
             let rest = String(phrase.dropFirst(prefix.count))
             if let named = namedTimes[rest] { return named }
-            return clock(rest, allowsBareHour: true).map { TimeValue(minute: $0, pinsToday: false) }
+            return clock(rest, allowsBareHour: true)
         }
-        return clock(phrase, allowsBareHour: false).map { TimeValue(minute: $0, pinsToday: false) }
+        return clock(phrase, allowsBareHour: false)
     }
 
     static let namedTimes: [String: TimeValue] = [
-        "noon": TimeValue(minute: 12 * 60, pinsToday: false),
-        "בצהריים": TimeValue(minute: 12 * 60, pinsToday: false),
+        "noon": TimeValue(minute: 12 * 60, pinsToday: false, isUnambiguous: true),
+        "בצהריים": TimeValue(minute: 12 * 60, pinsToday: false, isUnambiguous: true),
         "tonight": TimeValue(minute: 20 * 60, pinsToday: true),
         "הערב": TimeValue(minute: 20 * 60, pinsToday: true),
     ]
 
     /// "9am", "9:30pm", "9 am", "14:30", and (if allowed) "9" as 24-hour.
     /// The only space allowed is one before am/pm, so "1 2" never merges into 12.
-    static func clock(_ text: String, allowsBareHour: Bool) -> Int? {
+    static func clock(_ text: String, allowsBareHour: Bool) -> TimeValue? {
         var body = Substring(text)
         var meridiem: String?
         if body.hasSuffix("am") || body.hasSuffix("pm") {
@@ -43,6 +43,6 @@ enum TimePhrases {
         } else {
             guard parts.count == 2 || allowsBareHour, (0...23).contains(hour) else { return nil }
         }
-        return hour * 60 + minute
+        return TimeValue(minute: hour * 60 + minute, pinsToday: false, isUnambiguous: meridiem != nil)
     }
 }

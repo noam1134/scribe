@@ -4,6 +4,16 @@ import Foundation
 /// Numeric dates are day/month (Israeli order).
 enum DatePhrases {
     static func parse(_ phrase: String, today: LocalDay, calendar: Calendar) -> LocalDay? {
+        for leadIn in englishLeadIns where phrase.hasPrefix(leadIn) {
+            return parseCore(String(phrase.dropFirst(leadIn.count)), today: today, calendar: calendar)
+        }
+        return parseCore(phrase, today: today, calendar: calendar)
+    }
+
+    /// "on friday", "this friday", "by friday" mean the same as "friday".
+    static let englishLeadIns = ["on ", "this ", "by "]
+
+    private static func parseCore(_ phrase: String, today: LocalDay, calendar: Calendar) -> LocalDay? {
         if let offset = dayOffsets[phrase] { return today.adding(days: offset, calendar: calendar) }
         if let weekday = weekday(in: phrase) { return nextOccurrence(of: weekday, after: today, calendar: calendar) }
         if nextWeekPhrases.contains(phrase) { return nextOccurrence(of: calendar.firstWeekday, after: today, calendar: calendar) }

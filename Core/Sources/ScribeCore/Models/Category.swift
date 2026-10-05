@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 @Model
-public final class Category {
+final class Category {
     public var id: UUID = UUID()
     public var name: String = ""
     public var emoji: String = ""

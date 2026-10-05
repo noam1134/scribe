@@ -11,6 +11,8 @@ public enum StoreFactory {
 
     /// The real store in the App Group container. Only the main app syncs
     /// with CloudKit; the widget extension and intents pass `false`.
+    /// Call once per process and keep the container: two CloudKit-mirroring
+    /// containers on the same file in one process are not supported.
     public static func shared(syncsWithCloudKit: Bool) throws -> ModelContainer {
         let config = ModelConfiguration(
             "Scribe",

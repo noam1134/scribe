@@ -7,7 +7,7 @@ enum ParserFixture {
     static let bulgaria = CategorySnapshot(name: "Bulgaria", sortIndex: 2)
     static let budget = CategorySnapshot(name: "Budget", sortIndex: 3)
     static let avoda = CategorySnapshot(name: "עבודה", sortIndex: 4)
-    static let categories = [work, bulgaria, thailand, budget, avoda] // deliberately unsorted
+    static let categories = [work, budget, thailand, bulgaria, avoda] // deliberately not in sortIndex order
 
     static let parser = QuickAddParser(calendar: TestCalendar.jerusalem)
 

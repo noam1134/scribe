@@ -6,7 +6,7 @@ import SwiftData
 /// CloudKit schema ships to production, only ADD fields — never rename,
 /// retype or remove one.
 @Model
-public final class Item {
+final class Item {
     public var id: UUID = UUID()
     public var title: String = ""
     public var body: String = ""

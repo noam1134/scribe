@@ -40,4 +40,26 @@ struct SchemaTests {
         item.dueMinute = 5000
         #expect(item.due == DueDate(day: LocalDay(2026, 10, 12)))
     }
+
+    /// CloudKit field names and types come from these attributes. After the
+    /// schema ships, only additions are allowed (spec §5.3) — a rename or
+    /// retype fails here first.
+    @Test func attributeNamesAndTypesArePinned() {
+        func shape(_ entityName: String) -> [String: String] {
+            guard let entity = StoreFactory.schema.entities.first(where: { $0.name == entityName }) else { return [:] }
+            var fields: [String: String] = [:]
+            for attribute in entity.attributes { fields[attribute.name] = "\(attribute.valueType)" }
+            for relationship in entity.relationships { fields[relationship.name] = "-> \(relationship.destination)" }
+            return fields
+        }
+        #expect(shape("Item") == [
+            "id": "UUID", "title": "String", "body": "String", "kindRaw": "String",
+            "category": "-> Category", "dueDay": "Optional<String>", "dueMinute": "Optional<Int>",
+            "isDone": "Bool", "doneAt": "Optional<Date>", "createdAt": "Date", "updatedAt": "Date",
+        ])
+        #expect(shape("Category") == [
+            "id": "UUID", "name": "String", "emoji": "String", "colorName": "String",
+            "sortIndex": "Double", "items": "-> Item",
+        ])
+    }
 }

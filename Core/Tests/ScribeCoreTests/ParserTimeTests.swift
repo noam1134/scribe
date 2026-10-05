@@ -75,4 +75,28 @@ struct ParserTimeTests {
         #expect(draft.due == DueDate(day: F.day(10, 6), minute: 12 * 60))
         #expect(F.parse("lunch at noon").due == DueDate(day: F.day(10, 5), minute: 12 * 60))
     }
+
+    static let tonightCases: [(String, LocalDay, Int)] = [
+        ("x tonight at 9", F.day(10, 5), 21 * 60),
+        ("x tonight 9pm", F.day(10, 5), 21 * 60),
+        ("x 9pm tonight", F.day(10, 5), 21 * 60),
+        ("x tonight 9:30", F.day(10, 5), 21 * 60 + 30),
+        ("x tonight at 14:30", F.day(10, 5), 14 * 60 + 30),
+        ("x tomorrow tonight at 9", F.day(10, 6), 21 * 60),
+        ("x הערב ב-9", F.day(10, 5), 21 * 60),
+        ("x ב-9 הערב", F.day(10, 5), 21 * 60),
+    ]
+
+    @Test(arguments: tonightCases)
+    func tonightPairsWithOneExplicitTime(text: String, day: LocalDay, minute: Int) {
+        let draft = F.parse(text)
+        #expect(draft.title == "x")
+        #expect(draft.due == DueDate(day: day, minute: minute))
+    }
+
+    @Test func twoExplicitTimesStillStopTheScan() {
+        let draft = F.parse("x 9am 10am")
+        #expect(draft.title == "x 9am")
+        #expect(draft.due == DueDate(day: F.day(10, 6), minute: 10 * 60))
+    }
 }
