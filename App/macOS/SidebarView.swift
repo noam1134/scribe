@@ -1,9 +1,10 @@
 import ScribeCore
 import SwiftUI
 
-/// Upcoming, the Inbox while something is in it (spec §19), then the
-/// categories with color dot, emoji and open count. Categories are added,
-/// edited and deleted in place and reordered by dragging; ⌘Z undoes a delete.
+/// Upcoming, then the Categories section: the Inbox while something is in
+/// it (spec §19) and the categories with color dot, emoji and open count.
+/// Categories are added, edited (Return saves, Esc cancels) and deleted in
+/// place and reordered by dragging; ⌘Z undoes a delete.
 struct SidebarView: View {
     let store: any ItemStore
 
@@ -60,7 +61,6 @@ struct SidebarView: View {
                 newName = ""
                 addError = nil
                 isAdding = true
-                addFieldFocused = true
             } label: {
                 Label("New Category", systemImage: "plus")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -88,6 +88,7 @@ struct SidebarView: View {
                 .onChange(of: addFieldFocused) { _, focused in
                     if !focused && newName.trimmingCharacters(in: .whitespaces).isEmpty { isAdding = false }
                 }
+                .onAppear { addFieldFocused = true }
             if let addError {
                 Text(addError)
                     .font(.caption)

@@ -36,6 +36,7 @@ struct ItemListView: View {
         .listStyle(.inset)
         .focused(focus, equals: .list)
         .onKeyPress(.space) { router.run(.toggleDone) ? .handled : .ignored }
+        .onKeyPress(.return) { router.run(.edit) ? .handled : .ignored }
         .onDeleteCommand { router.run(.delete) }
         .contextMenu(forSelectionType: UUID.self) { ids in
             if let id = ids.first, let item = store.item(id) {
