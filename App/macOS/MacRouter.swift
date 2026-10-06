@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import ScribeCore
+import SwiftUI
 
 /// State of one Mac window: what the sidebar shows, the selected and the
 /// expanded row, search, keyboard focus requests and the "Couldn’t Save"
@@ -27,7 +28,8 @@ final class MacRouter {
     var selectedItemID: UUID? {
         didSet {
             // Selecting another row closes the one being edited.
-            editing.selectionChanged(to: selectedItemID)
+            guard editing.itemID != nil, editing.itemID != selectedItemID else { return }
+            withAnimation(.snappy) { editing.selectionChanged(to: selectedItemID) }
         }
     }
 
@@ -135,25 +137,30 @@ final class MacRouter {
 
     // MARK: Writes
 
+    // Animated, so the rows around a completed, moved or deleted one close
+    // up (as on the iPhone).
+
     func setDone(_ item: ItemSnapshot, _ done: Bool) {
-        perform { try undoable.setDone(item, done) }
+        withAnimation(.snappy) { perform { try undoable.setDone(item, done) } }
     }
 
     func delete(_ item: ItemSnapshot) {
-        perform {
+        withAnimation(.snappy) { perform {
             try undoable.deleteItem(item)
             editing.close(item.id)
-        }
+        } }
     }
 
     func update(_ item: ItemSnapshot, _ actionName: String, _ edit: (inout ItemEdit) -> Void) {
-        perform { try undoable.update(item.id, actionName: actionName, edit) }
+        withAnimation(.snappy) { perform { try undoable.update(item.id, actionName: actionName, edit) } }
     }
 
     /// Selects the row and opens its inline editor, title focused.
     func edit(_ id: UUID) {
-        selectedItemID = id
-        editing.open(id)
+        withAnimation(.snappy) {
+            selectedItemID = id
+            editing.open(id)
+        }
     }
 
     func showsDetails(of id: UUID) -> Bool {
@@ -171,7 +178,7 @@ final class MacRouter {
     }
 
     func closeEditor() {
-        editing.close()
+        withAnimation(.snappy) { editing.close() }
         focusRequest = .list
     }
 

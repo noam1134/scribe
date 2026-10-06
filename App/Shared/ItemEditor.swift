@@ -119,6 +119,10 @@ struct ItemEditor: View {
                 EmptyView()
             }
         }
+        // Mac: borderless, so the title stays where the row showed it.
+        #if os(macOS)
+        .textFieldStyle(.plain)
+        #endif
         .onChange(of: item.checklist) { _, stored in checklist.rebase(onto: stored) }
         .onDisappear(perform: finish)
         .onChange(of: scenePhase) { _, phase in

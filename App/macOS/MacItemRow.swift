@@ -2,9 +2,10 @@ import ScribeCore
 import SwiftUI
 
 /// One item: checkbox (tasks) or note glyph (memos), the title in its own
-/// text direction, and its details — the due/category line and the notes —
-/// shown until a click hides them; a click shows them again, a double-click
-/// opens the inline editor in the title's place (Things-style, spec §9.3).
+/// text direction, and its details — the due/category/checklist line (on
+/// the title's line when both fit) and the notes — shown until a click
+/// hides them; a click shows them again, a double-click opens the inline
+/// editor in the title's place (Things-style, spec §9.3).
 struct MacItemRow: View {
     let store: any ItemStore
     let item: ItemSnapshot
@@ -34,29 +35,34 @@ struct MacItemRow: View {
                 ) {
                     router.closeEditor()
                 }
-                .padding(.vertical, 4)
+                // Below only: the title stays where the row showed it.
+                .padding(.bottom, 4)
             } else {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title)
-                        .strikethrough(item.isDone)
-                        .foregroundStyle(item.isDone ? .secondary : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .layoutDirection(of: item.title)
-                    if router.showsDetails(of: item.id) {
-                        if let subtitle = item.subtitle(category: category, showsDay: showsDay, showsCategory: showsCategory) {
-                            Text(subtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        if !item.body.isEmpty {
-                            Text(item.body)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(6)
+                let showsDetails = router.showsDetails(of: item.id)
+                VStack(alignment: .leading, spacing: 1) {
+                    // The details' line beside the title when both fit;
+                    // under it when they don't, so a long title isn't squeezed.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            title.fixedSize()
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .layoutDirection(of: item.body)
-                                .padding(.top, 2)
+                                .layoutDirection(of: item.title)
+                            if showsDetails { secondaryLine.fixedSize() }
                         }
+                        VStack(alignment: .leading, spacing: 1) {
+                            title
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .layoutDirection(of: item.title)
+                            if showsDetails { secondaryLine }
+                        }
+                    }
+                    if showsDetails && !item.body.isEmpty {
+                        Text(item.body)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutDirection(of: item.body)
                     }
                 }
                 .contentShape(.rect)
@@ -70,7 +76,27 @@ struct MacItemRow: View {
                 }
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 1)
+    }
+
+    private var title: some View {
+        Text(item.title)
+            .strikethrough(item.isDone)
+            .foregroundStyle(item.isDone ? .secondary : .primary)
+    }
+
+    /// Date, category and checklist progress; nothing when there are none.
+    @ViewBuilder private var secondaryLine: some View {
+        let subtitle = item.subtitle(category: category, showsDay: showsDay, showsCategory: showsCategory)
+        let progress = ChecklistProgress(item.checklist)
+        if subtitle != nil || progress != nil {
+            HStack(spacing: 6) {
+                if let subtitle { Text(subtitle) }
+                if let progress { ChecklistBadge(progress: progress) }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder private var marker: some View {
@@ -80,14 +106,16 @@ struct MacItemRow: View {
                 router.setDone(item, !item.isDone)
             } label: {
                 Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
+                    .font(.body)
+                    .imageScale(.large)
                     .foregroundStyle(category?.color ?? .accentColor)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(item.isDone ? "Mark not done" : "Mark done")
         case .memo:
             Image(systemName: "note.text")
-                .font(.title3)
+                .font(.body)
+                .imageScale(.large)
                 .foregroundStyle(.tertiary)
         }
     }
