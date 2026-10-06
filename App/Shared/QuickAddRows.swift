@@ -34,7 +34,7 @@ struct QuickAddChipRow: View {
 
     static func icon(for kind: TokenKind) -> String {
         switch kind {
-        case .category: "folder"
+        case .category, .mention: "folder"
         case .kind: "note.text"
         case .date: "calendar"
         case .time: "clock"
@@ -43,7 +43,9 @@ struct QuickAddChipRow: View {
 }
 
 /// Where the item goes. One tap picks; a typed `#tag` picks for you; a typed
-/// unknown `#name` offers to create it. No Inbox here (spec §19).
+/// unknown `#name` offers to create it. No Inbox here (spec §19). A pick
+/// worked out from the words ("… for work", or the on-device model) shows
+/// a sparkle.
 struct QuickAddCategoryRow: View {
     let composer: QuickAddComposer
     let live: QuickAddComposer.LiveParse
@@ -56,18 +58,28 @@ struct QuickAddCategoryRow: View {
                 HStack(spacing: 8) {
                     ForEach(live.categories) { category in
                         let picked = category.id == live.categoryID
+                        let guessed = picked && live.categoryIsGuess
                         Button {
                             composer.select(category.id)
                         } label: {
                             Label {
-                                Text(category.displayName)
-                                    .fontWeight(picked ? .semibold : .regular)
+                                HStack(spacing: 4) {
+                                    Text(category.displayName)
+                                        .fontWeight(picked ? .semibold : .regular)
+                                    if guessed {
+                                        Image(systemName: "sparkles")
+                                            .imageScale(.small)
+                                            .foregroundStyle(.secondary)
+                                            .accessibilityHidden(true)
+                                    }
+                                }
                             } icon: {
                                 Image(systemName: picked ? "checkmark.circle.fill" : "circle.fill")
                                     .foregroundStyle(category.color)
                             }
                         }
                         .accessibilityAddTraits(picked ? .isSelected : [])
+                        .accessibilityValue(guessed ? Text("Suggested") : Text(""))
                         .accessibilityIdentifier("pickCategory-\(category.name)")
                     }
                     if let name = live.unknownCategoryName {

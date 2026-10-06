@@ -87,6 +87,7 @@ struct QuickAddSheet: View {
         .presentationDetents([.height(min(contentHeight, maxHeight))])
         .presentationDragIndicator(.visible)
         .onAppear { focus = .title }
+        .suggestsCategory(for: composer, request: live.suggestionRequest)
         .saveErrorAlert(router)
     }
 
