@@ -3,9 +3,10 @@ import SwiftUI
 
 /// One item: checkbox (tasks) or note glyph (memos), the title in its own
 /// text direction, and its details — the due/category/checklist line (on
-/// the title's line when both fit) and the notes — shown until a click
-/// hides them; a click shows them again, a double-click opens the inline
-/// editor in the title's place (Things-style, spec §9.3).
+/// the title's line when both fit), the notes and the checklist's steps
+/// (a click ticks one) — shown until a click hides them; a click shows them
+/// again, a double-click opens the inline editor in the title's place
+/// (Things-style, spec §9.3).
 struct MacItemRow: View {
     let store: any ItemStore
     let item: ItemSnapshot
@@ -64,6 +65,9 @@ struct MacItemRow: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .layoutDirection(of: item.body)
                     }
+                    if showsDetails && !item.checklist.isEmpty {
+                        steps.padding(.top, 3)
+                    }
                 }
                 .contentShape(.rect)
                 // A click on the text selects the row and shows or hides
@@ -77,6 +81,42 @@ struct MacItemRow: View {
             }
         }
         .padding(.vertical, 1)
+    }
+
+    /// The checklist under the details: a click on a step ticks it, without
+    /// opening the editor (undoable, like every change in the list).
+    private var steps: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(item.checklist) { step in
+                Button { toggle(step) } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Image(systemName: step.isDone ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(step.isDone ? AnyShapeStyle(category?.color ?? .accentColor) : AnyShapeStyle(.secondary))
+                        Text(step.title)
+                            .strikethrough(step.isDone)
+                            .foregroundStyle(step.isDone ? .secondary : .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutDirection(of: step.title)
+                    }
+                    .font(.callout)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(step.title)
+                .accessibilityValue(step.isDone ? "Done" : "Not done")
+                .accessibilityHint(step.isDone ? "Marks the step not done" : "Marks the step done")
+            }
+        }
+    }
+
+    private func toggle(_ step: ChecklistItem) {
+        router.update(item, step.isDone ? "Uncheck Step" : "Check Step") { edit in
+            edit.checklist = item.checklist.map { current in
+                var current = current
+                if current.id == step.id { current.isDone.toggle() }
+                return current
+            }
+        }
     }
 
     private var title: some View {
