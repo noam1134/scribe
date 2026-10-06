@@ -56,6 +56,7 @@ struct SchemaTests {
             "id": "UUID", "title": "String", "body": "String", "kindRaw": "String",
             "category": "-> Category", "dueDay": "Optional<String>", "dueMinute": "Optional<Int>",
             "isDone": "Bool", "doneAt": "Optional<Date>", "createdAt": "Date", "updatedAt": "Date",
+            "checklistJSON": "String",
         ])
         #expect(shape("Category") == [
             "id": "UUID", "name": "String", "emoji": "String", "colorName": "String",

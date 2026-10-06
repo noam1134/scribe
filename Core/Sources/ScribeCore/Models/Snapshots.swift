@@ -13,6 +13,7 @@ public struct ItemSnapshot: Identifiable, Hashable, Sendable {
     public var doneAt: Date?
     public var createdAt: Date
     public var updatedAt: Date
+    public var checklist: [ChecklistItem]
 
     public init(
         id: UUID = UUID(),
@@ -24,7 +25,8 @@ public struct ItemSnapshot: Identifiable, Hashable, Sendable {
         isDone: Bool = false,
         doneAt: Date? = nil,
         createdAt: Date = .distantPast,
-        updatedAt: Date = .distantPast
+        updatedAt: Date = .distantPast,
+        checklist: [ChecklistItem] = []
     ) {
         self.id = id
         self.title = title
@@ -36,6 +38,7 @@ public struct ItemSnapshot: Identifiable, Hashable, Sendable {
         self.doneAt = doneAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.checklist = checklist
     }
 }
 
@@ -77,7 +80,8 @@ extension Item {
             isDone: kind == .task && isDone,
             doneAt: doneAt,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            checklist: checklist
         )
     }
 }

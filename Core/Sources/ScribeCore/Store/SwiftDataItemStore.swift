@@ -93,7 +93,8 @@ public final class SwiftDataItemStore: ItemStore {
     public func updateItem(_ id: UUID, _ edit: (inout ItemEdit) -> Void) throws {
         let context = ModelContext(container)
         let item = try itemModel(id, in: context)
-        var fields = ItemEdit(title: item.title, body: item.body, kind: item.kind, categoryID: item.category?.id, due: item.due)
+        let checklist = item.checklist
+        var fields = ItemEdit(title: item.title, body: item.body, kind: item.kind, categoryID: item.category?.id, due: item.due, checklist: checklist)
         edit(&fields)
         let title = try Self.validTitle(fields.title)
         let category = try fields.categoryID.map { try categoryModel($0, in: context) }
@@ -106,6 +107,7 @@ public final class SwiftDataItemStore: ItemStore {
         }
         item.category = category
         item.due = fields.due
+        if fields.checklist != checklist { item.checklist = fields.checklist }
         item.updatedAt = now()
         try save(context)
     }
@@ -141,6 +143,7 @@ public final class SwiftDataItemStore: ItemStore {
             createdAt: snapshot.createdAt,
             updatedAt: snapshot.updatedAt
         )
+        item.checklist = snapshot.checklist
         context.insert(item)
         item.category = snapshot.categoryID.flatMap { try? categoryModel($0, in: context) }
         try save(context)
@@ -254,7 +257,7 @@ public final class SwiftDataItemStore: ItemStore {
                 ExportedItem(
                     id: $0.id, title: $0.title, body: $0.body, kind: $0.kind, categoryID: $0.category?.id,
                     dueDay: $0.dueDay, dueMinute: $0.dueMinute, isDone: $0.isDone, doneAt: $0.doneAt,
-                    createdAt: $0.createdAt, updatedAt: $0.updatedAt
+                    createdAt: $0.createdAt, updatedAt: $0.updatedAt, checklist: $0.checklist
                 )
             }
         )

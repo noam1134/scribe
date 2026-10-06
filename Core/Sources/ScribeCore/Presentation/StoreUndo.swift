@@ -96,6 +96,7 @@ private struct FieldChange {
         var categoryID: UUID??
         var due: DueDate??
         var isDone: Bool?
+        var checklist: [ChecklistItem]?
     }
 
     var old = Values()
@@ -108,6 +109,7 @@ private struct FieldChange {
         if before.categoryID != after.categoryID { (old.categoryID, new.categoryID) = (.some(before.categoryID), .some(after.categoryID)) }
         if before.due != after.due { (old.due, new.due) = (.some(before.due), .some(after.due)) }
         if before.isDone != after.isDone { (old.isDone, new.isDone) = (before.isDone, after.isDone) }
+        if before.checklist != after.checklist { (old.checklist, new.checklist) = (before.checklist, after.checklist) }
     }
 
     private init(old: Values, new: Values) {
@@ -117,6 +119,7 @@ private struct FieldChange {
 
     var isEmpty: Bool {
         new.title == nil && new.body == nil && new.kind == nil && new.categoryID == nil && new.due == nil && new.isDone == nil
+            && new.checklist == nil
     }
 
     /// Undo for this change (and redo for the undo).
@@ -131,5 +134,6 @@ private struct FieldChange {
         if let kind = new.kind { edit.kind = kind }
         if let categoryID = new.categoryID { edit.categoryID = categoryID }
         if let due = new.due { edit.due = due }
+        if let checklist = new.checklist { edit.checklist = checklist }
     }
 }

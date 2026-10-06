@@ -28,6 +28,8 @@ public struct ExportedItem: Codable, Equatable, Sendable {
     public var doneAt: Date?
     public var createdAt: Date
     public var updatedAt: Date
+    /// Always written (empty for none); optional so older exports still read.
+    public var checklist: [ChecklistItem]?
 }
 
 extension ExportDocument {

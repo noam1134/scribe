@@ -33,13 +33,16 @@ public struct ItemEdit: Equatable, Sendable {
     public var kind: ItemKind
     public var categoryID: UUID?
     public var due: DueDate?
+    /// Replaced as a whole.
+    public var checklist: [ChecklistItem]
 
-    public init(title: String, body: String, kind: ItemKind, categoryID: UUID?, due: DueDate?) {
+    public init(title: String, body: String, kind: ItemKind, categoryID: UUID?, due: DueDate?, checklist: [ChecklistItem] = []) {
         self.title = title
         self.body = body
         self.kind = kind
         self.categoryID = categoryID
         self.due = due
+        self.checklist = checklist
     }
 }
 

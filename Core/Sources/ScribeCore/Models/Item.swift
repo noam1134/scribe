@@ -20,6 +20,8 @@ final class Item {
     public var doneAt: Date?
     public var createdAt: Date = Date.now
     public var updatedAt: Date = Date.now
+    /// The checklist's steps as JSON (`ChecklistCoding`); "" when none.
+    public var checklistJSON: String = ""
 
     public init(
         id: UUID = UUID(),
