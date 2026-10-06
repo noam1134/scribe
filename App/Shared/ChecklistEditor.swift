@@ -41,6 +41,8 @@ struct ChecklistEditor: View {
             } label: {
                 Image(systemName: step.isDone ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(step.isDone ? AnyShapeStyle(tint) : AnyShapeStyle(.secondary))
+                    // The whole circle: a tap inside the ring otherwise
+                    // reaches the row behind, which closes the editor.
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
