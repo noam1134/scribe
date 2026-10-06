@@ -130,7 +130,7 @@ From the checklists + Mac polish change (branch `feat-checklists-mac`, 2026-10-0
 - **Sync is last-writer-wins for the whole checklist** (`Item.checklistJSON`): two devices editing steps of the same item before syncing keep only one side's list. Per-step records would merge; not worth it until it bites.
 - Search doesn't look inside steps (title + notes only).
 - iPhone: Delete in an empty step removes it only with a hardware keyboard (`onKeyPress` gets no software-keyboard keys); on screen, the focused step's × or leaving it empty removes it.
-- Mac: a row's height change — details shown/hidden with a click, the editor opening/closing, a step added in the editor — snaps: SwiftUI's `List` (an `NSOutlineView`) never animates row heights. Inserts, removes and moves do fade and slide. Animating heights means a `ScrollView`/`LazyVStack` list that rebuilds selection, arrow keys, type-select, Return/Space/⌘⌫, the context menu and double-click.
+- Mac: the item list is now a `ScrollView`/`LazyVStack` (heights animate). Lost from the `List`: type-select (typing a letter jumps to a row) and shift/⌘-click multi-selection (never used: commands act on one row).
 - Mac: whether Delete in an empty step reaches `onKeyPress` (the field editor may take it first), and whether the caret lands at the end of the step above (AppKit selects a field's text on focus).
 
 ## Later (after v1)
