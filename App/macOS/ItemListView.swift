@@ -4,7 +4,12 @@ import SwiftUI
 /// The second column: the agenda for Upcoming (spec §6), open tasks, memos
 /// and a collapsed Done group for a category or the Inbox (spec §9.2), or
 /// search results grouped by category. Click selects; double-click or
-/// Return edits in place; Space completes; ⌘⌫ deletes (spec §9.3).
+/// Return edits in place; Space completes; ⌘⌫ deletes; ↑/↓ move the
+/// selection (spec §9.3).
+///
+/// Rows in a scroll view, not a `List`: a List (NSTableView) snaps a row to
+/// its new height, so a row's details, its editor and its checklist jumped
+/// open. Here every change of height slides, as on the iPhone.
 struct ItemListView: View {
     let store: any ItemStore
     var focus: FocusState<MacRouter.Focus?>.Binding
@@ -12,44 +17,37 @@ struct ItemListView: View {
     @Environment(MacRouter.self) private var router
 
     var body: some View {
-        @Bindable var router = router
         let categories = store.categories
         let content = ListContent.make(router: router, store: store, categories: categories)
         ScrollViewReader { proxy in
-            List(selection: $router.selectedItemID) {
-                ForEach(content.sections) { section in
-                    Section {
-                        rows(section.items, section: section, categories: categories)
-                    } header: {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(content.sections) { section in
                         if let title = section.title {
-                            Text(title).foregroundStyle(section.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                            header(Text(title).foregroundStyle(section.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary)))
                         }
+                        rows(section.items, section: section, categories: categories)
                     }
-                }
-                if !content.done.isEmpty {
-                    Section {
-                        DisclosureGroup("Done (\(content.done.count))", isExpanded: $router.showsDone) {
+                    if !content.done.isEmpty {
+                        doneHeader(count: content.done.count)
+                        if router.showsDone {
                             rows(content.done, section: nil, categories: categories)
                         }
                     }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
             }
-            .listStyle(.inset)
-            // A new list per sidebar entry or query: swapping every section of
-            // one list for another set makes AppKit warn about a reentrant table
-            // update ("…will become an assert"); small changes diff fine.
+            // A fresh scroll position per sidebar entry or query.
             .id(content.identity)
+            .focusable()
+            .focusEffectDisabled()
             .focused(focus, equals: .list)
+            .onKeyPress(.upArrow) { moveSelection(by: -1, proxy) }
+            .onKeyPress(.downArrow) { moveSelection(by: 1, proxy) }
             .onKeyPress(.space) { router.run(.toggleDone) ? .handled : .ignored }
             .onKeyPress(.return) { router.run(.edit) ? .handled : .ignored }
             .onDeleteCommand { router.run(.delete) }
-            .contextMenu(forSelectionType: UUID.self) { ids in
-                if let id = ids.first, let item = store.item(id) {
-                    MacItemMenu(item: item, categories: categories)
-                }
-            } primaryAction: { ids in
-                if let id = ids.first { router.edit(id) }
-            }
             .onChange(of: content.visibleIDs, initial: true) { old, new in
                 router.visibleItemIDs = new
                 // The selected row left the list (deleted, completed out of the
@@ -78,8 +76,37 @@ struct ItemListView: View {
         .navigationTitle(content.title)
     }
 
+    private func header(_ title: Text) -> some View {
+        title
+            .font(.subheadline.weight(.semibold))
+            .padding(.leading, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+    }
+
+    private func doneHeader(count: Int) -> some View {
+        Button {
+            withAnimation(.snappy) { router.showsDone.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .rotationEffect(.degrees(router.showsDone ? 90 : 0))
+                Text("Done (\(count))")
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .padding(.leading, 8)
+        .padding(.top, 14)
+        .padding(.bottom, 4)
+    }
+
     private func rows(_ items: [ItemSnapshot], section: ListContent.Section?, categories: [CategorySnapshot]) -> some View {
         ForEach(items) { item in
+            let isSelected = router.selectedItemID == item.id
             MacItemRow(
                 store: store,
                 item: item,
@@ -87,7 +114,40 @@ struct ItemListView: View {
                 showsDay: section?.showsDay ?? true,
                 showsCategory: section?.showsCategory ?? false
             )
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(focus.wrappedValue == .list ? Color.accentColor.opacity(0.22) : Color.secondary.opacity(0.14))
+                }
+            }
+            .contentShape(.rect)
+            // Beside the row's text (which takes its own clicks).
+            .onTapGesture(count: 2) { router.edit(item.id) }
+            .onTapGesture { select(item.id) }
+            .contextMenu { MacItemMenu(item: item, categories: categories) }
+            .id(item.id)
         }
+    }
+
+    private func select(_ id: UUID) {
+        router.selectedItemID = id
+        if router.expandedItemID == nil { focus.wrappedValue = .list }
+    }
+
+    private func moveSelection(by step: Int, _ proxy: ScrollViewProxy) -> KeyPress.Result {
+        let ids = router.visibleItemIDs
+        guard !ids.isEmpty else { return .ignored }
+        let next: UUID
+        if let current = router.selectedItemID, let index = ids.firstIndex(of: current) {
+            next = ids[min(max(index + step, 0), ids.count - 1)]
+        } else {
+            next = step > 0 ? ids[0] : ids[ids.count - 1]
+        }
+        router.selectedItemID = next
+        proxy.scrollTo(next)
+        return .handled
     }
 }
 

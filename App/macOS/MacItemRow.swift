@@ -66,12 +66,12 @@ struct MacItemRow: View {
                     }
                 }
                 .contentShape(.rect)
-                // The list never passes a row's clicks on to a gesture
-                // that runs alongside its own, so the text takes both
-                // clicks itself and selects the row as the list would.
+                // A click on the text selects the row and shows or hides
+                // its details; a double-click edits.
                 .onTapGesture(count: 2) { router.edit(item.id) }
                 .onTapGesture {
                     router.selectedItemID = item.id
+                    router.focusRequest = .list
                     withAnimation(.snappy) { router.toggleDetails(of: item.id) }
                 }
             }
