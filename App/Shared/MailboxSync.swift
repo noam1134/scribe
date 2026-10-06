@@ -129,7 +129,7 @@ final class MailboxSync {
         do {
             try links.save(connection.link)
         } catch {
-            log.error("Couldn't save the connector link; using it until Scribe quits")
+            log.error("Couldn't save the connector link to the Keychain; it lasts until the app is next activated")
         }
         setConnection(connection)
         Task { await syncNow() }
@@ -228,7 +228,9 @@ final class MailboxSync {
         pendingPublish?.cancel()
         pendingPublish = Task {
             try? await Task.sleep(for: Self.publishDelay)
-            guard !Task.isCancelled, running == nil, let store, let connection else { return }
+            // A sync in progress may have published before this change.
+            if let running { await running.value }
+            guard !Task.isCancelled, let store, let connection else { return }
             do {
                 try await publish(store, to: connection, force: false)
                 record(nil, for: connection)

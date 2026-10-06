@@ -40,7 +40,7 @@ struct ClaudeSettingsSection: View {
                     link = ""
                     mailbox.disconnect()
                 }
-                .tint(.red)
+                .foregroundStyle(.red)
                 .accessibilityIdentifier("claudeDisconnect")
             } else {
                 linkField
