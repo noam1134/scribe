@@ -46,6 +46,8 @@ enum BackgroundRefresh {
         if let imported { FreshnessStamp.record(imported) }
         log.info("Background refresh finished (\(launch, privacy: .public)); import \(imported == nil ? "not seen" : "succeeded", privacy: .public)")
         store.refresh()
+        // Items Claude queued, and a fresh "what's coming up" for it.
+        await MailboxSync.shared.syncNow()
         await StoreChanged.notify()
     }
 }

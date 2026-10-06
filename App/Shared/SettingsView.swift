@@ -14,6 +14,7 @@ struct SettingsView: View {
         Form {
             SyncSection()
             NotificationsSection()
+            ClaudeSettingsSection()
             #if os(macOS)
             QuickAddHotkeySection()
             #endif
