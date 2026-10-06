@@ -6,3 +6,6 @@ build/
 DerivedData/
 *.xcresult
 .superpowers/brainstorm/
+
+# Agent worktrees
+.claude/worktrees/
