@@ -25,6 +25,8 @@ enum AppProcess {
         // refresh) re-plan before they return. The scheduler serializes and
         // coalesces passes, so overlapping calls are safe.
         StoreChanged.observe { await NotificationCoordinator.shared.rescheduleNow() }
+        // Collects what Claude queued and publishes what's coming up.
+        MailboxSync.shared.start(store: store)
         log.info("App services started")
     }
 }

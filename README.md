@@ -12,6 +12,7 @@ Built so far:
 - **Siri and Shortcuts:** "Add to Scribe", which asks for a category when the text has no `#tag`.
 - **Notifications:** an alert at each timed item's due time, with Done / +1 hour / Tomorrow, and a morning summary of the day. On by default on iPhone, off on Mac.
 - **Settings:** iCloud sync status ("Last synced …", and what to do when sync is off), this device's notifications and morning summary time, Export All as JSON, the version, and on the Mac the quick-add shortcut recorder.
+- **Claude:** a Cloudflare Worker mailbox (`mailbox/`, see its README) lets Claude — on the iPhone, the web or the Mac — add items and see what's coming up; Scribe collects them and iCloud syncs them as usual. Connect it in Settings › Claude.
 
 ## Development
 
@@ -29,6 +30,7 @@ open Scribe.xcodeproj
 (cd Core && swift test)                    # Core unit tests
 xcodebuild -project Scribe.xcodeproj -scheme Scribe \
   -destination "platform=iOS Simulator,name=iPhone 17 Pro" test   # UI smoke tests
+(cd mailbox && npm ci && npm test)          # Claude mailbox Worker
 ```
 
 `NotificationUITests` waits for real notifications (about five minutes; fails in the minutes before midnight), so it is skipped unless you prefix the command with `TEST_RUNNER_SCRIBE_RUN_NOTIFICATION_UI_TESTS=1`. `ListsScreenshots` walks the Lists screen on demo data and saves screenshots when `TEST_RUNNER_SCRIBE_SCREENSHOTS` names a folder.

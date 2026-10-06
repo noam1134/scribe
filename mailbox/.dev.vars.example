@@ -1,0 +1,3 @@
+# Copy to .dev.vars (git-ignored) for `wrangler dev`. Make a real key with
+# `openssl rand -hex 32`; never commit it.
+MAILBOX_KEY=replace-with-the-output-of-openssl-rand-hex-32
