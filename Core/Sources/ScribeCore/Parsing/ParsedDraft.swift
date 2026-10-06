@@ -2,6 +2,8 @@ import Foundation
 
 public enum TokenKind: String, Hashable, Sendable, CaseIterable {
     case category, kind, date, time
+    /// A category named in plain words: "… in Thailand", "… לעבודה".
+    case mention
 }
 
 /// A recognized trailing token, shown as a chip in quick-add UIs.
@@ -25,13 +27,18 @@ public struct ParsedDraft: Equatable, Sendable {
     public var due: DueDate?
     /// Enabled recognized tokens, in input order.
     public var tokens: [RecognizedToken]
+    /// The category a trailing mention names ("… for work"). Never set
+    /// together with a `#tag` for another category: the tag wins and the
+    /// mention stays in the title.
+    public var mentionedCategoryID: UUID?
 
     public var isValid: Bool { !title.isEmpty }
 
-    /// nil when the title is empty. An unknown category becomes the Inbox.
+    /// nil when the title is empty. A `#tag` beats a mention; an unknown
+    /// category becomes the Inbox.
     public var itemDraft: ItemDraft? {
         guard isValid else { return nil }
-        var categoryID: UUID?
+        var categoryID = mentionedCategoryID
         if case .matched(let id) = category { categoryID = id }
         return ItemDraft(title: title, kind: kind, categoryID: categoryID, due: due)
     }

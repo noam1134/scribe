@@ -7,6 +7,10 @@ import Foundation
 /// therefore keeps "שבת" in the title. Each token kind is used at most once,
 /// except that "tonight" / "הערב" may pair with one explicit time, so a draft
 /// can carry two `.time` tokens.
+///
+/// Plain language too: a trailing category mention ("… for work", see
+/// `CategoryMention`) is a token, and leading request phrases ("remind me
+/// to …", see `RequestPhrases`) leave the title.
 public struct QuickAddParser: Sendable {
     public var calendar: Calendar
 
@@ -23,6 +27,7 @@ public struct QuickAddParser: Sendable {
         case kind(ItemKind)
         case date(LocalDay)
         case time(TimeValue)
+        case mention(UUID)
 
         var tokenKind: TokenKind {
             switch self {
@@ -30,6 +35,7 @@ public struct QuickAddParser: Sendable {
             case .kind: .kind
             case .date: .date
             case .time: .time
+            case .mention: .mention
             }
         }
     }
@@ -55,16 +61,31 @@ public struct QuickAddParser: Sendable {
                 end -= length
                 continue scanning
             }
+            if !used.contains(.mention), let mention = mention(endingAt: end, in: words, categories: categories) {
+                used.insert(.mention)
+                let start = end - mention.length
+                found.append((start, words[start..<end].joined(separator: " "), .mention(mention.categoryID)))
+                end = start
+                continue scanning
+            }
             break
         }
         found.sort { $0.start < $1.start }
 
+        // A `#tag` beats a mention of another category: "fix sink in Home
+        // #work" keeps "in Home" in the title.
+        let tag = found.lazy.compactMap { token -> CategoryMatch? in
+            if case .category(let match) = token.recognition { return match }
+            return nil
+        }.first
         var draft = ParsedDraft(title: "", kind: .task, category: .none, due: nil, tokens: [])
         var titleWords = Array(words[0..<end])
         var date: LocalDay?
         var times: [TimeValue] = []
         for token in found {
-            guard !disabled.contains(token.recognition.tokenKind) else {
+            var isOff = disabled.contains(token.recognition.tokenKind)
+            if case .mention(let id) = token.recognition, let tag, tag != .matched(id) { isOff = true }
+            guard !isOff else {
                 titleWords.append(token.text)
                 continue
             }
@@ -74,9 +95,15 @@ public struct QuickAddParser: Sendable {
             case .kind(let kind): draft.kind = kind
             case .date(let day): date = day
             case .time(let value): times.append(value)
+            case .mention(let id): draft.mentionedCategoryID = id
             }
         }
-        draft.title = titleWords.joined(separator: " ")
+        let title = titleWords.joined(separator: " ")
+        draft.title = RequestPhrases.cleaned(title) ?? title
+        // "tomorrow for family": a mention never takes the last of the title.
+        if draft.title.isEmpty, draft.mentionedCategoryID != nil {
+            return parse(text, categories: categories, now: now, disabled: disabled.union([.mention]))
+        }
         draft.due = resolveDue(date: date, time: Self.combine(times), today: today, now: now)
         return draft
     }
@@ -85,14 +112,25 @@ public struct QuickAddParser: Sendable {
     /// `#tag` is not interpreted — the item goes to the Inbox with the tag
     /// kept in its title.
     public func nonInteractiveDraft(_ text: String, categories: [CategorySnapshot], now: Date) -> ItemDraft? {
-        var parsed = parse(text, categories: categories, now: now)
-        if case .unknown = parsed.category {
-            parsed = parse(text, categories: categories, now: now, disabled: [.category])
-        }
-        return parsed.itemDraft
+        nonInteractiveParse(text, categories: categories, now: now).itemDraft
+    }
+
+    func nonInteractiveParse(_ text: String, categories: [CategorySnapshot], now: Date, disabled: Set<TokenKind> = []) -> ParsedDraft {
+        let parsed = parse(text, categories: categories, now: now, disabled: disabled)
+        guard case .unknown = parsed.category else { return parsed }
+        return parse(text, categories: categories, now: now, disabled: disabled.union([.category]))
     }
 
     // MARK: Recognition
+
+    /// A mention that leaves something of the title once its request
+    /// phrases go: "remind me for work" is not filed as "".
+    private func mention(endingAt end: Int, in words: [String], categories: [CategorySnapshot]) -> CategoryMention.Match? {
+        guard let match = CategoryMention.trailing(in: words[0..<end], categories: categories) else { return nil }
+        let rest = words[0..<(end - match.length)].joined(separator: " ")
+        guard !RequestPhrases.isEmptyRequest(rest) else { return nil }
+        return match
+    }
 
     private func recognize(_ rawPhrase: String, today: LocalDay, categories: [CategorySnapshot]) -> Recognition? {
         let phrase = Self.droppingTrailingPunctuation(rawPhrase)
