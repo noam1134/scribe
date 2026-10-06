@@ -134,3 +134,13 @@ Ideas from the author, 2026-10-05.
 
 - In the CloudKit Console (Development), confirm every `CD_Item` / `CD_Category` field exists — fields appear only after a saved record has a value (e.g. `dueDay`, `dueMinute`, `doneAt`).
 - `SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD` is `YES` (Vision Pro availability) — decide at distribution time.
+
+## Claude mailbox follow-ups
+
+Built 2026-10-06 (`mailbox/` Worker, Settings › Claude). Still open:
+
+- **Device checks:** deploy the Worker, add the connector in claude.ai, ask Claude on the iPhone to add an item; it appears when Scribe comes to the front (iPhone and Mac) and in the iPhone's background refresh; the link pasted on one device reaches the other through iCloud Keychain (signed builds only); Disconnect on one forgets it on both.
+- **Cross-device double add.** The Worker leases an item to one device for a minute and each device remembers what it added, but if a device adds an item, its acknowledgement is lost and the lease ends, another device adds it again. Closing it needs the mailbox id on the item (a model change) or a synced ledger.
+- **No push.** Items wait until Scribe opens or iOS runs its background refresh; a Mac app left in the background doesn't poll. A periodic sync while the app runs, or APNs from the Worker, would close the gap.
+- Claude can only add. Completing, editing or moving items through Claude needs either a command queue the app applies or the data on Cloudflare (spec §17).
+- The snapshot sends upcoming titles (never notes) to the Worker; the connector link is the only lock. Changing the key means pasting the new link into Claude and Scribe.
