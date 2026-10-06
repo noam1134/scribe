@@ -133,12 +133,23 @@ From the checklists + Mac polish change (branch `feat-checklists-mac`, 2026-10-0
 - Mac: the item list is now a `ScrollView`/`LazyVStack` (heights animate). Lost from the `List`: type-select (typing a letter jumps to a row) and shift/⌘-click multi-selection (never used: commands act on one row).
 - Mac: whether Delete in an empty step reaches `onKeyPress` (the field editor may take it first), and whether the caret lands at the end of the step above (AppKit selects a field's text on focus).
 
+## Smart adding follow-ups
+
+Plain-language adds ("remind me to … in Thailand", 2026-10-06): request phrases and trailing category mentions in Core (`RequestPhrases`, `CategoryMention`), Apple's on-device model as the fallback in the app (`CategoryGuesser`).
+
+- **Device checks:** the model's pre-pick on an iPhone with Apple Intelligence (speed, wrong picks, the sparkle); Siri "Remind me in Scribe" — "remind me" may be taken by Reminders — and the model filing a Siri add instead of asking; the Mac composers with the model.
+- The model guessed wrong on 2 of 18 labelled entries (Mac, 2026-10-06), e.g. "Renew passport" → Thailand. The pick is marked with a sparkle and can be tapped away, but a fast Return files it. If that bites, show model guesses without pre-picking, or ask the model for confidence.
+- Hebrew text never reaches the model: it isn't one of its languages yet (the gate reads `SystemLanguageModel.supportedLanguages`). Hebrew mentions work through the parser.
+- The cleaned title isn't shown before saving — the field keeps what was typed. A faint "Saves as “Call the bank”" line could preview it.
+- A name elsewhere in the text ("call the Work hotline") doesn't pick a category without the model: only a trailing mention does, so a loose match ("work out") can't preempt the model.
+- `#tag` matching still compares names with their emoji (mentions ignore them).
+
 ## Later (after v1)
 
 Ideas from the author, 2026-10-05.
 
-- **Talk to add, with the category worked out.** Saying or typing "remind me to fix the dates for our hotels in Thailand" adds "Fix the dates for our hotels" to Thailand. When no category clearly fits, ask which one, or offer to create one. Builds on Phase 4's Siri intent (`AddItemIntent`); Apple's on-device Foundation Models framework could pick the category privately, with the `#tag` parser as the fallback.
-- **Let Claude add tasks — from any device, iPhone included.** A remote MCP server on a Cloudflare Worker (Claude custom connectors work on iPhone, web and Mac). The data stays in iCloud; the Worker is a mailbox: the app publishes its category list, Claude reads it and drops new items in (asking in the chat when the category is unclear, or proposing a new one), and Scribe collects them on launch, background refresh or a silent push, then syncs them through iCloud as usual. If the data later moves to Cloudflare (spec §17), the same MCP talks to it directly. (A Mac-only local tool was rejected: it wouldn't work from the iPhone.)
+- ~~**Talk to add, with the category worked out.**~~ Built — see "Smart adding follow-ups" above. Still open from the idea: offering to create a category when none fits.
+- ~~**Let Claude add tasks — from any device, iPhone included.**~~ Built — see "Claude mailbox follow-ups" below. A remote MCP server on a Cloudflare Worker (Claude custom connectors work on iPhone, web and Mac). The data stays in iCloud; the Worker is a mailbox: the app publishes its category list, Claude reads it and drops new items in (asking in the chat when the category is unclear, or proposing a new one), and Scribe collects them on launch, background refresh or a silent push, then syncs them through iCloud as usual. If the data later moves to Cloudflare (spec §17), the same MCP talks to it directly. (A Mac-only local tool was rejected: it wouldn't work from the iPhone.)
 
 ## Before the first production CloudKit schema deploy
 

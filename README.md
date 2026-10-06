@@ -9,7 +9,8 @@ Built so far:
 - **iPhone app:** Lists (every category on one screen, collapsible), Upcoming, inline editing, quick-add with notes and English + Hebrew parsing, search, iCloud sync.
 - **Mac app:** sidebar + list with inline editing, keyboard shortcuts, search, a menu bar extra and the ⌃⇧Space quick-add panel.
 - **Widgets:** an Upcoming widget (iPhone home and lock screen, Mac desktop, optionally one category) with checkboxes, plus an "Add to Scribe" Control.
-- **Siri and Shortcuts:** "Add to Scribe", which asks for a category when the text has no `#tag`.
+- **Plain-language adds:** "remind me to fix the dates for our hotels in Thailand" saves "Fix the dates for our hotels" in Thailand — the category is pre-picked as you type (English + Hebrew; Apple's on-device model guesses when no category is named, where available).
+- **Siri and Shortcuts:** "Add to Scribe", which files by `#tag`, a named category or the on-device model, and asks only when none fits.
 - **Notifications:** an alert at each timed item's due time, with Done / +1 hour / Tomorrow, and a morning summary of the day. On by default on iPhone, off on Mac.
 - **Settings:** iCloud sync status ("Last synced …", and what to do when sync is off), this device's notifications and morning summary time, Export All as JSON, the version, and on the Mac the quick-add shortcut recorder.
 - **Claude:** a Cloudflare Worker mailbox (`mailbox/`, see its README) lets Claude — on the iPhone, the web or the Mac — add items and see what's coming up; Scribe collects them and iCloud syncs them as usual. Connect it in Settings › Claude.

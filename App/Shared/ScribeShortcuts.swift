@@ -12,6 +12,8 @@ struct ScribeShortcuts: AppShortcutsProvider {
                 "Add an item to \(.applicationName)",
                 "Add a task to \(.applicationName)",
                 "New \(.applicationName) item",
+                "Remind me in \(.applicationName)",
+                "Add a reminder to \(.applicationName)",
             ],
             shortTitle: "Add to Scribe",
             systemImageName: "plus.circle"

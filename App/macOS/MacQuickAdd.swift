@@ -48,6 +48,7 @@ struct MacComposer<Focus: Hashable>: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
+        .suggestsCategory(for: composer, request: live.suggestionRequest)
     }
 
     private func save() {

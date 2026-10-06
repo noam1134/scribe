@@ -17,16 +17,22 @@ public enum IntentAdd {
     }
 
     /// The category comes from, in order: the intent's Category parameter
-    /// (when it still exists), a `#tag` in the text, or the only category
-    /// there is. Otherwise the user is asked. An unknown `#tag` stays in the
-    /// title, as in the composer.
+    /// (when it still exists), a `#tag` in the text, a mention ("… for
+    /// work"), or the only category there is. Otherwise the user is asked
+    /// (the app may first ask the on-device model). An unknown `#tag` stays
+    /// in the title, as in the composer, and so does a mention the
+    /// parameter overrides. Request phrases ("remind me to") leave the title.
     public static func resolve(_ text: String, categoryID: UUID?, categories: [CategorySnapshot], now: Date, calendar: Calendar) -> Resolution {
         let parser = QuickAddParser(calendar: calendar)
-        guard var draft = parser.nonInteractiveDraft(text, categories: categories, now: now) else { return .emptyTitle }
+        let parameter = categoryID.flatMap { id in categories.contains { $0.id == id } ? id : nil }
+        var parsed = parser.nonInteractiveParse(text, categories: categories, now: now)
+        if let parameter, let mentioned = parsed.mentionedCategoryID, mentioned != parameter {
+            parsed = parser.nonInteractiveParse(text, categories: categories, now: now, disabled: [.mention])
+        }
+        guard var draft = parsed.itemDraft else { return .emptyTitle }
         guard !categories.isEmpty else { return .noCategories }
-        let exists = { (id: UUID) in categories.contains { $0.id == id } }
-        if let categoryID, exists(categoryID) {
-            draft.categoryID = categoryID
+        if let parameter {
+            draft.categoryID = parameter
         } else if draft.categoryID == nil, categories.count == 1 {
             draft.categoryID = categories[0].id
         }
