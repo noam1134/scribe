@@ -123,9 +123,11 @@ struct ChecklistStoreTests {
     }
 
     @Test func exportIncludesTheChecklist() throws {
-        let store = try makeStore()
+        let clock = TestClock()
+        let store = try makeStore(clock: clock)
         let id = try store.addItem(ItemDraft(title: "Pack"))
         try store.updateItem(id) { $0.checklist = steps }
+        clock.advance(minutes: 1) // the export is in creation order
         try store.addItem(ItemDraft(title: "No steps"))
         let data = try store.exportJSON()
         let document = try ExportDocument.decoder().decode(ExportDocument.self, from: data)
