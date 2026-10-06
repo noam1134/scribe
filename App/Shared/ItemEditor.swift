@@ -1,12 +1,13 @@
 import ScribeCore
 import SwiftUI
 
-/// A tapped row's inline editor (spec §9.2): title, notes, and a row of
-/// glass chips for date, category and kind. Text saves on Return (which also
-/// closes the editor), when the editor goes away and when the app leaves the
-/// foreground; chips save immediately. Only the text fields the user changed
-/// are written (`ItemTextDraft`). On the Mac the title is focused when the
-/// editor opens and Esc closes it (spec §9.3).
+/// A tapped row's inline editor (spec §9.2): title, notes, checklist, and a
+/// row of glass chips for date, category and kind. Text (step text too)
+/// saves on Return in the title (which also closes the editor), when the
+/// editor goes away and when the app leaves the foreground; chips and
+/// checking a step save immediately. Only what the user changed is written (`ItemTextDraft`,
+/// `ChecklistDraft`). On the Mac the title is focused when the editor opens
+/// and Esc closes it (spec §9.3).
 struct ItemEditor: View {
     /// Writes an edit to the item; the name is for Edit › Undo.
     typealias Save = @MainActor (_ id: UUID, _ actionName: String, _ edit: (inout ItemEdit) -> Void) throws -> Void
@@ -28,6 +29,7 @@ struct ItemEditor: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var text: ItemTextDraft
+    @State private var checklist: ChecklistDraft
     @State private var picker: InlinePicker?
     #if os(macOS)
     @FocusState private var titleFocused: Bool
@@ -35,6 +37,10 @@ struct ItemEditor: View {
 
     private let calendar = Calendar.autoupdatingCurrent
     private var today: LocalDay { LocalDay(Date(), calendar: calendar) }
+    /// The row checkbox's color: the item's category.
+    private var tint: Color {
+        item.categoryID.flatMap { id in categories.first { $0.id == id } }?.color ?? .accentColor
+    }
 
     init(
         store: any ItemStore,
@@ -53,6 +59,7 @@ struct ItemEditor: View {
         self.takeTitleFocus = takeTitleFocus
         self.close = close
         _text = State(initialValue: ItemTextDraft(title: item.title, notes: item.body))
+        _checklist = State(initialValue: ChecklistDraft(item.checklist))
     }
 
     private var titleField: some View {
@@ -89,6 +96,9 @@ struct ItemEditor: View {
                 .lineLimit(1...6)
                 .layoutDirection(of: text.notes)
                 .accessibilityIdentifier("notesField")
+            ChecklistEditor(draft: $checklist, tint: tint) { isDone in
+                update(isDone ? "Check Step" : "Uncheck Step") { _ in }
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     dateChip
@@ -109,6 +119,7 @@ struct ItemEditor: View {
                 EmptyView()
             }
         }
+        .onChange(of: item.checklist) { _, stored in checklist.rebase(onto: stored) }
         .onDisappear(perform: finish)
         .onChange(of: scenePhase) { _, phase in
             // The app may be ended in the background: keep what was typed.
@@ -239,7 +250,7 @@ struct ItemEditor: View {
 
     private func saveText() {
         let changes = text.changes
-        guard !changes.isEmpty else { return }
+        guard !changes.isEmpty || checklist.changes != nil else { return }
         write(changes, actionName: "Edit Item") { _ in }
     }
 
@@ -264,9 +275,11 @@ struct ItemEditor: View {
     private func write(_ changes: ItemTextDraft.Changes, actionName: String, _ edit: (inout ItemEdit) -> Void) {
         // Deleted (swiped away, or on another device): nothing to save into.
         guard store.item(item.id) != nil else { return }
+        let steps = checklist.changes
         perform {
             let combined: (inout ItemEdit) -> Void = {
                 changes.apply(to: &$0)
+                if let steps { $0.checklist = steps }
                 edit(&$0)
             }
             if let save {
@@ -275,6 +288,7 @@ struct ItemEditor: View {
                 try store.updateItem(item.id, combined)
             }
             text.didSave(changes)
+            if let steps { checklist.didSave(steps) }
         }
     }
 }

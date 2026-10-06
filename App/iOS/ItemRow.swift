@@ -2,7 +2,7 @@ import ScribeCore
 import SwiftUI
 
 /// One item in any list: checkbox (tasks) or note glyph (memos), title in
-/// its own text direction, due/category line. Tap to edit in place (the
+/// its own text direction, due/category/checklist line. Tap to edit in place (the
 /// editor takes the title's place; a tap between its fields closes it);
 /// in a card, swipe right to complete, left to delete with Undo (spec §9.2).
 struct ItemRow: View {
@@ -38,13 +38,13 @@ struct ItemRow: View {
                         title.fixedSize()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .layoutDirection(of: item.title)
-                        subtitleText?.fixedSize()
+                        secondaryLine.fixedSize()
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         title
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .layoutDirection(of: item.title)
-                        subtitleText
+                        secondaryLine
                     }
                 }
                 .contentShape(.rect)
@@ -87,8 +87,18 @@ struct ItemRow: View {
             .foregroundStyle(item.isDone ? .secondary : .primary)
     }
 
-    private var subtitleText: Text? {
-        subtitle.map { Text($0).font(.footnote).foregroundStyle(.secondary) }
+    /// Date, category and checklist progress; nothing when there are none.
+    @ViewBuilder private var secondaryLine: some View {
+        let subtitle = subtitle
+        let progress = ChecklistProgress(item.checklist)
+        if subtitle != nil || progress != nil {
+            HStack(spacing: 6) {
+                if let subtitle { Text(subtitle) }
+                if let progress { ChecklistBadge(progress: progress) }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
     }
 
     private var subtitle: String? {

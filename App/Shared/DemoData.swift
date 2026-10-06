@@ -29,7 +29,14 @@ enum DemoData {
             try store.addItem(ItemDraft(title: "Send the quarterly report", categoryID: work, due: due(-1)))
             try store.addItem(ItemDraft(title: "Review Dan’s pull request", categoryID: work, due: due(0, 10 * 60 + 30)))
             try store.addItem(ItemDraft(title: "1:1 with Maya", categoryID: work, due: due(1, 14 * 60)))
-            try store.addItem(ItemDraft(title: "Prepare the offsite agenda", categoryID: work, due: due(3)))
+            let offsite = try store.addItem(ItemDraft(title: "Prepare the offsite agenda", categoryID: work, due: due(3)))
+            try store.updateItem(offsite) {
+                $0.checklist = [
+                    ChecklistItem(title: "Book the room", isDone: true),
+                    ChecklistItem(title: "Draft the schedule"),
+                    ChecklistItem(title: "Send the invites"),
+                ]
+            }
             try store.addItem(ItemDraft(title: "Renew the domain", categoryID: work, due: due(6)))
             try store.addItem(ItemDraft(title: "Expense report", categoryID: work))
             try store.addItem(ItemDraft(title: "Book flights to Bangkok", body: "Window seat, morning flight", categoryID: trip, due: due(0)))
