@@ -58,7 +58,7 @@ enum CategoryMention {
         let isWholeName: Bool
     }
 
-    private static let prepositions: Set<String> = ["in", "for", "on", "under", "into", "to"]
+    private static let prepositions: Set<String> = ["in", "for", "on", "at", "under", "into", "to"]
     /// "to Thailand" is a destination, not a filing: "to" needs "… list".
     private static let needListWord: Set<String> = ["to", "into"]
     private static let determiners: Set<String> = ["my", "the", "our"]
@@ -135,7 +135,7 @@ enum CategoryMention {
         return rest.isEmpty ? nil : String(rest)
     }
 
-    /// "in", "for my", "to the … list": how many keys before the name
+    /// "in", "at", "for my", "to the … list": how many keys before the name
     /// introduce it.
     private static func englishLead(_ keys: ArraySlice<String>, hasListWord: Bool) -> [Int] {
         var leads: [Int] = []

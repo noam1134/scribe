@@ -26,6 +26,7 @@ struct CategoryMentionTests {
         ("book a hotel in THAILAND", "book a hotel", F.thailand.id),
         ("book a hotel in Thailand.", "book a hotel", F.thailand.id),
         ("call mom for family", "call mom", family.id),
+        ("ask Dana at work", "ask Dana", F.work.id),
     ]
 
     @Test(arguments: englishCases)
