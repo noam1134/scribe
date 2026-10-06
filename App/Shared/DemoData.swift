@@ -15,7 +15,14 @@ enum DemoData {
         StoreLoader.isUITesting && CommandLine.arguments.contains("-demoData")
     }
 
+    /// `-videoDemo` fills an empty store — the persistent one too, so the
+    /// widget shows it — with the showcase video's lists. Debug builds only.
+    static var isVideoRequested: Bool {
+        CommandLine.arguments.contains("-videoDemo")
+    }
+
     static func seedIfRequested(_ store: any ItemStore) {
+        if isVideoRequested, store.categories.isEmpty { return seedVideo(store) }
         guard isRequested, store.categories.isEmpty else { return }
         let calendar = Calendar.autoupdatingCurrent
         let today = LocalDay(Date(), calendar: calendar)
@@ -57,6 +64,45 @@ enum DemoData {
             try store.deleteCategory(orphan) // leaves an item in the Inbox
         } catch {
             assertionFailure("Demo data: \(error)")
+        }
+    }
+
+    private static func seedVideo(_ store: any ItemStore) {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = LocalDay(Date(), calendar: calendar)
+        func due(_ days: Int, _ minute: Int? = nil) -> DueDate {
+            DueDate(day: today.adding(days: days, calendar: calendar), minute: minute)
+        }
+        do {
+            // The video's Claude scene files "Book hotel in Avoriaz" here.
+            if CommandLine.arguments.contains("-demoMailboxItem") {
+                try store.addCategory(CategoryDraft(name: "Avoriaz", colorName: "indigo"))
+            }
+            let trip = try store.addCategory(CategoryDraft(name: "Thailand", colorName: "teal"))
+            let ski = try store.addCategory(CategoryDraft(name: "Borovets", colorName: "blue"))
+            let work = try store.addCategory(CategoryDraft(name: "Work", colorName: "orange"))
+            let home = try store.addCategory(CategoryDraft(name: "Home", colorName: "green"))
+            try store.addItem(ItemDraft(title: "Book flights to Bangkok", body: "Window seat, morning flight", categoryID: trip, due: due(0, 10 * 60 + 30)))
+            try store.addItem(ItemDraft(title: "Hotel in Chiang Mai", categoryID: trip, due: due(2)))
+            try store.addItem(ItemDraft(title: "Passport number", body: "Expires 2031", kind: .memo, categoryID: trip))
+            let pack = try store.addItem(ItemDraft(title: "Pack for Borovets", categoryID: ski, due: due(3)))
+            try store.updateItem(pack) {
+                $0.checklist = [
+                    ChecklistItem(title: "Ski boots", isDone: true),
+                    ChecklistItem(title: "Gloves"),
+                    ChecklistItem(title: "Goggles"),
+                    ChecklistItem(title: "Helmet"),
+                ]
+            }
+            try store.addItem(ItemDraft(title: "Wax the skis", categoryID: ski, due: due(5)))
+            try store.addItem(ItemDraft(title: "Send the quarterly report", categoryID: work, due: due(-1)))
+            try store.addItem(ItemDraft(title: "1:1 with Maya", categoryID: work, due: due(1, 14 * 60)))
+            try store.addItem(ItemDraft(title: "Prepare the offsite agenda", categoryID: work, due: due(4)))
+            try store.addItem(ItemDraft(title: "Buy milk", categoryID: home, due: due(1, 18 * 60)))
+            try store.addItem(ItemDraft(title: "Call mom", categoryID: home, due: due(2)))
+            try store.addItem(ItemDraft(title: "Fix the bike", categoryID: home))
+        } catch {
+            assertionFailure("Video demo data: \(error)")
         }
     }
 
