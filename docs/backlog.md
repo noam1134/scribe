@@ -123,6 +123,16 @@ Settings shipped (spec §21). Still open:
 - Mac Settings is a fixed 480 × 640 window that scrolls; size it to its content (or split it into tabs) if it grows, and add a File › "Export…" command.
 - Export encodes on the main actor; move it off if a large store ever makes the tap feel slow.
 
+## Checklists and Mac rows follow-ups
+
+From the checklists + Mac polish change (branch `feat-checklists-mac`, 2026-10-06).
+
+- **Sync is last-writer-wins for the whole checklist** (`Item.checklistJSON`): two devices editing steps of the same item before syncing keep only one side's list. Per-step records would merge; not worth it until it bites.
+- Search doesn't look inside steps (title + notes only).
+- iPhone: Delete in an empty step removes it only with a hardware keyboard (`onKeyPress` gets no software-keyboard keys); on screen, the focused step's × or leaving it empty removes it.
+- Mac: a row's height change — details shown/hidden with a click, the editor opening/closing, a step added in the editor — snaps: SwiftUI's `List` (an `NSOutlineView`) never animates row heights. Inserts, removes and moves do fade and slide. Animating heights means a `ScrollView`/`LazyVStack` list that rebuilds selection, arrow keys, type-select, Return/Space/⌘⌫, the context menu and double-click.
+- Mac: whether Delete in an empty step reaches `onKeyPress` (the field editor may take it first), and whether the caret lands at the end of the step above (AppKit selects a field's text on focus).
+
 ## Later (after v1)
 
 Ideas from the author, 2026-10-05.
