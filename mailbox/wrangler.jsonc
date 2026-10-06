@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "scribe-mailbox",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // One mailbox per deployment: a single Durable Object (SQLite storage)
+  // holds the app's latest snapshot and the items Claude queued.
+  "durable_objects": {
+    "bindings": [{ "name": "MAILBOX", "class_name": "Mailbox" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Mailbox"] }],
+  // Every route lives under the key: `wrangler secret put MAILBOX_KEY`.
+  "secrets": { "required": ["MAILBOX_KEY"] },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    // Request URLs carry the key, so invocation logs (which record them)
+    // stay off; the Worker logs its own events without the path.
+    "logs": { "enabled": true, "invocation_logs": false }
+  }
+}
