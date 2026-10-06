@@ -94,7 +94,7 @@ public struct SyncStatusText: Equatable, Sendable {
     }
 
     /// "just now", "at 09:14", "yesterday at 22:10", "Fri 2 Oct at 09:05".
-    private static func when(_ date: Date, now: Date, labels: DueLabels) -> String {
+    static func when(_ date: Date, now: Date, labels: DueLabels) -> String {
         if now.timeIntervalSince(date) < 60 { return "just now" }
         let calendar = labels.calendar
         let clock = calendar.dateComponents([.hour, .minute], from: date)
